@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+DOCKER_BIN="/Applications/Docker.app/Contents/Resources/bin/docker"
+if command -v docker >/dev/null 2>&1; then DOCKER_BIN=docker; fi
+case "${1:-status}" in
+ prepare) dev/.venv/bin/python services/cards/scripts/dev_setup.py ;;
+ up) "$DOCKER_BIN" compose --env-file dev/.env -f dev/compose.yaml -f dev/compose.cards.yaml --profile auth --profile core --profile tests --profile cards up -d --no-deps --build cards ;;
+ integration-up) "$DOCKER_BIN" compose --env-file dev/.env -f dev/compose.yaml -f dev/compose.cards.yaml --profile auth --profile core --profile tests --profile cards up -d --no-deps --build core tests cards ;;
+ start) "$DOCKER_BIN" compose --env-file dev/.env -f dev/compose.yaml -f dev/compose.cards.yaml --profile auth --profile core --profile tests --profile cards up -d --no-deps core tests cards ;;
+ offline-up) dev/.venv/bin/python services/cards/scripts/offline_build.py; ./dev/cards start ;;
+ status) "$DOCKER_BIN" compose --env-file dev/.env -f dev/compose.yaml -f dev/compose.cards.yaml --profile auth --profile core --profile tests --profile cards ps cards ;;
+ test) dev/.venv/bin/python services/cards/scripts/http_test.py ;;
+ *) echo 'Usage: dev/cards prepare|up|integration-up|offline-up|start|status|test';exit 2 ;;
+esac

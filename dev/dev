@@ -1,0 +1,121 @@
+#!/bin/sh
+set -eu
+BASE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -d /Applications/Docker.app/Contents/Resources/bin ]; then
+  PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+  export PATH
+fi
+DOCKER_CLI=$(command -v docker || true)
+if [ -z "$DOCKER_CLI" ]; then DOCKER_CLI=/Applications/Docker.app/Contents/Resources/bin/docker; fi
+
+# Read only the generated mode flag. Never source a file containing credentials.
+HOMEWORK_TEST_S3=false
+if [ -f "$BASE/local/homework-compose.env" ]; then
+  while IFS= read -r homework_env_line; do
+    case "$homework_env_line" in
+      HOMEWORK_S3_TEST_FIXTURE=true) HOMEWORK_TEST_S3=true ;;
+    esac
+  done < "$BASE/local/homework-compose.env"
+fi
+
+homework_compose() {
+  if [ "$HOMEWORK_TEST_S3" = true ]; then
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" \
+      --env-file "$BASE/local/homework-compose.env" -f "$BASE/compose.yaml" \
+      -f "$BASE/compose.homework.yaml" --profile auth --profile core --profile rabbit \
+      --profile homework --profile s3-test "$@"
+  else
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" \
+      --env-file "$BASE/local/homework-compose.env" -f "$BASE/compose.yaml" \
+      -f "$BASE/compose.homework.yaml" --profile auth --profile core --profile rabbit \
+      --profile homework "$@"
+  fi
+}
+
+all_compose() {
+  if [ -f "$BASE/local/homework-compose.env" ]; then
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" \
+      --env-file "$BASE/local/homework-compose.env" -f "$BASE/compose.yaml" \
+      -f "$BASE/compose.homework.yaml" --profile auth --profile core --profile rabbit \
+      --profile tests --profile calculate --profile homework --profile s3-test "$@"
+  else
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" \
+      -f "$BASE/compose.yaml" --profile auth --profile core --profile rabbit \
+      --profile tests --profile calculate "$@"
+  fi
+}
+case "${1:-status}" in
+  up) "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" up -d --wait ;;
+  auth-up)
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" --profile auth build auth
+    "$BASE/.venv/bin/python" "$BASE/../services/auth/scripts/provision_keys.py"
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" --profile auth up -d --wait auth
+    ;;
+  core-up)
+    "$BASE/.venv/bin/python" "$BASE/../services/core/scripts/dev_setup.py"
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" --profile auth --profile core build auth core
+    "$BASE/.venv/bin/python" "$BASE/../services/auth/scripts/provision_keys.py"
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" --profile auth --profile core up -d --wait auth core
+    ;;
+  rabbit-prepare) "$BASE/.venv/bin/python" "$BASE/scripts/rabbit_env.py" ;;
+  rabbit-up)
+    "$BASE/.venv/bin/python" "$BASE/scripts/rabbit_env.py"
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" --profile rabbit up -d --wait rabbitmq
+    ;;
+  tests-up)
+    "$BASE/.venv/bin/python" "$BASE/scripts/gateway_env.py"
+    "$BASE/.venv/bin/python" "$BASE/scripts/rabbit_env.py"
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" up -d --wait mysql mongo
+    "$BASE/.venv/bin/python" "$BASE/../services/core/scripts/dev_setup.py"
+    "$BASE/.venv/bin/python" "$BASE/../services/tests/scripts/dev_setup.py"
+    "$BASE/.venv/bin/python" "$BASE/../services/calculate/scripts/dev_setup.py"
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" --profile auth --profile core --profile tests --profile calculate --profile rabbit build auth core tests calculate
+    "$BASE/.venv/bin/python" "$BASE/../services/auth/scripts/provision_keys.py"
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" -f "$BASE/compose.yaml" --profile auth --profile core --profile tests --profile calculate --profile rabbit up -d --wait tests calculate
+    ;;
+  calculate-up)
+    exec "$BASE/dev" tests-up
+    ;;
+  gateway-prepare) "$BASE/.venv/bin/python" "$BASE/scripts/gateway_env.py" ;;
+  monitoring-up)
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" \
+      -f "$BASE/compose.yaml" -f "$BASE/compose.monitoring.yaml" --profile monitoring \
+      up -d --no-deps --wait prometheus
+    ;;
+  homework-prepare)
+    case "${2:-}" in
+      '')
+        "$BASE/.venv/bin/python" "$BASE/scripts/rabbit_env.py"
+        "$BASE/.venv/bin/python" "$BASE/scripts/homework_env.py"
+        ;;
+      --test-s3)
+        "$BASE/.venv/bin/python" "$BASE/scripts/rabbit_env.py"
+        "$BASE/.venv/bin/python" "$BASE/scripts/homework_env.py" --test-s3
+        ;;
+      *) echo 'Usage: ./dev/dev homework-prepare [--test-s3]' >&2; exit 2 ;;
+    esac
+    ;;
+  homework-up)
+    if [ ! -f "$BASE/local/homework-compose.env" ]; then
+      echo 'Run ./dev/dev homework-prepare [--test-s3] first.' >&2
+      exit 2
+    fi
+    "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" \
+      -f "$BASE/compose.yaml" up -d --wait mysql
+    "$BASE/.venv/bin/python" "$BASE/../services/core/scripts/dev_setup.py"
+    "$BASE/.venv/bin/python" "$BASE/../services/homework/scripts/dev_setup.py"
+    "$BASE/.venv/bin/python" "$BASE/../services/auth/scripts/provision_keys.py"
+    if [ "$HOMEWORK_TEST_S3" = true ]; then
+      homework_compose build core homework file-work-service s3-test
+      homework_compose up -d --wait s3-test
+      "$BASE/.venv/bin/python" "$BASE/../services/homework/scripts/dev_setup.py" --test-s3
+    else
+      homework_compose build core homework file-work-service
+    fi
+    homework_compose up -d --wait homework file-work-service
+    ;;
+  stop) all_compose stop ;;
+  status) all_compose ps ;;
+  logs) all_compose logs --tail 60 ;;
+  *) echo 'Usage: ./dev/dev {up|auth-up|core-up|tests-up|calculate-up|gateway-prepare|monitoring-up|homework-prepare [--test-s3]|homework-up|rabbit-prepare|rabbit-up|stop|status|logs}' >&2; exit 2 ;;
+esac

@@ -1,0 +1,35 @@
+name: cpm-attendance
+services:
+  attendance:
+    profiles: [attendance]
+    build:
+      context: ../services/attendance
+    image: cpm-attendance:dev
+    restart: unless-stopped
+    env_file: [./local/attendance.env]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      ATTENDANCE_LISTEN_ADDR: "0.0.0.0:8013"
+      ATTENDANCE_AUTH_URL: http://auth:8002
+      ATTENDANCE_CORE_URL: http://core:8003
+    ports: ["127.0.0.1:8013:8013"]
+    networks: [cpm-dev]
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, /attendance, healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+networks:
+  cpm-dev:
+    external: true
+    name: cpm-dev_default

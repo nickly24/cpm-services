@@ -1,0 +1,215 @@
+{
+  "contract_revision": 2,
+  "contract_sha256": "4aeeccb8497777f1b0fac218bebc52f69dcd162b36683fc3a7756ef5e7bc92bd",
+  "created_at_utc": "2026-10-09T20:47:51.122169+00:00",
+  "source_manifest_sha256": "f761d1c436f19e89e7d49ba9b10d3a552d0abb586c880efee22c2060c2a345cb",
+  "files": [
+    {
+      "path": "dev/compose.auth-operations.yaml",
+      "sha256": "b2b0de0e53f069fae784b2059857500c4ca92de6a1777bd9b67d1f5c7b84afda"
+    },
+    {
+      "path": "dev/local/auth-operations-build/Dockerfile",
+      "sha256": "bfae4deb4af183b8651fd424954fd6545c90fe50ea8d7e4765457c7077255226"
+    },
+    {
+      "path": "services/auth/Dockerfile",
+      "sha256": "c0129a335fa9c1fc84dee91fa2e3c2860bffe938d495be6f21f47aed04faca7e"
+    },
+    {
+      "path": "services/auth/README.md",
+      "sha256": "d478dbf3d3f64c212e6ac074e64e075f8c773271bd0cb8ef4ae6407ecbc246b9"
+    },
+    {
+      "path": "services/auth/cmd/auth/main.go",
+      "sha256": "cc4cd05dd0d56668ff4b97949ce336101ba654b1737de76af18acacf318ff700"
+    },
+    {
+      "path": "services/auth/cmd/keygen/main.go",
+      "sha256": "baefe5718dbd621d1377011f0229d6dd0c28e8b12c150b3f5d628919bcb52e6d"
+    },
+    {
+      "path": "services/auth/docs/import-operation-grants-v1.freeze.json",
+      "sha256": "1568327dff11e1604fc89477e5efab4031eb039f72ccd7518b8828db7c733ccc"
+    },
+    {
+      "path": "services/auth/docs/import-operation-grants-v1.md",
+      "sha256": "4aeeccb8497777f1b0fac218bebc52f69dcd162b36683fc3a7756ef5e7bc92bd"
+    },
+    {
+      "path": "services/auth/docs/import-operation-grants.md",
+      "sha256": "818dfb959956f17495eff0512a5fd9a32264fe289a08320f65382b9b8d0ed0af"
+    },
+    {
+      "path": "services/auth/go.mod",
+      "sha256": "b00113f2018ebb7a2f3eb798ac09382805ff0502bf9981d16311940781156e24"
+    },
+    {
+      "path": "services/auth/go.sum",
+      "sha256": "d35ac8981f2601984ecd7d3d6cfd45470d1136ff3b128ad5252126275a9a2c88"
+    },
+    {
+      "path": "services/auth/internal/auth/config.go",
+      "sha256": "d34f8d3eb4c9f2f70a345bad3d0d17b99f02f7f64d91076936eb0332a1a918bd"
+    },
+    {
+      "path": "services/auth/internal/auth/http.go",
+      "sha256": "4011b14c8a6c36d943e163a48d6d3429ea23aeb1ac2eb0b432f7f4275bc733aa"
+    },
+    {
+      "path": "services/auth/internal/auth/management.go",
+      "sha256": "361908bbbb3dac6bd0c3ae4416b1ff248a673b0f8dc76b3c67644ebf5ef1381d"
+    },
+    {
+      "path": "services/auth/internal/auth/management_test.go",
+      "sha256": "0f531562eb16b6b8dca602b6da43b54e3806daa37cbc262018c3400173f14f07"
+    },
+    {
+      "path": "services/auth/internal/auth/model.go",
+      "sha256": "8c69ba2192a4a27aaa1729bf5ab599272be652495aa7035603821bbfb7514e73"
+    },
+    {
+      "path": "services/auth/internal/auth/openapi.json",
+      "sha256": "356d09c1e122bc5b011e92c818d869a3077672a50ba6055bbc99b3af282f7ca2"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_config.go",
+      "sha256": "daecac49111b31281bf6e29eecff611ac4274791859b86f9cb4abd4139294288"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_contract.go",
+      "sha256": "d668192df35be60550b90a86b98ffa8e5001c66efc9bdd05c03f6a194f0bbcce"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_http.go",
+      "sha256": "9ce4ba3625f269b19fb81364a4af3ce145a0c985b047224a80f85b1aafe77bd5"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_json.go",
+      "sha256": "0c94a256111b6a364f364e10ae63717177e0d3427319d5948332c9c57c76710a"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_json_test.go",
+      "sha256": "3965b4dc3fc7e8d23c62db972dad131dc8bbc3b1f3510ea2a93e388e7481cc89"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_matrix_test.go",
+      "sha256": "c5ad89b880de3fec10b32b6486c040e4a13fda437e8068ce5cc7d83904948003"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_service.go",
+      "sha256": "8d69810a1264f79bff287624d2fd7ba38d33e24e3168499f431467449fd73c23"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_service_test.go",
+      "sha256": "a7f30c884adbbb1b3b5156b3d40647f1e01df05e37dbcbff3ef16236677c415b"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_store.go",
+      "sha256": "9126ca786a04f05d361735ab1b0fd01efb7bacc4400ac2ee635adcfbd0b74382"
+    },
+    {
+      "path": "services/auth/internal/auth/operation_store_integration_test.go",
+      "sha256": "ef1c3a3affdeb49c56007f0d9367039db3c0567f550eb0f12a3bea2676b5698d"
+    },
+    {
+      "path": "services/auth/internal/auth/password.go",
+      "sha256": "71890c68b8f7d4a4f09d63747211b105b7973ad2a425b8a1e28d68b16132f811"
+    },
+    {
+      "path": "services/auth/internal/auth/password_test.go",
+      "sha256": "e9d74f88f5be1e7f8e8d6d350e29001f292afa9fd2856fce36695170c5caa344"
+    },
+    {
+      "path": "services/auth/internal/auth/repository.go",
+      "sha256": "e7c9692d6076785fb554daa2b2c9685c8495d8f22b691959072e1c0d7fa9c668"
+    },
+    {
+      "path": "services/auth/internal/auth/token.go",
+      "sha256": "00f463890d997ba03ef59b0fc63ead9157eff00b3adcb8880fbf90f880a6ebf6"
+    },
+    {
+      "path": "services/auth/internal/auth/token_test.go",
+      "sha256": "4d4d1eef62fd4c83eb6d3bb1e66664f8b3826e210171966840a6e0ad4c165f77"
+    },
+    {
+      "path": "services/auth/migrations/001_auth_context.sql",
+      "sha256": "327f52d0cee084dd3cfa5cba9469461919f551de7c16073cfca7048549b6df66"
+    },
+    {
+      "path": "services/auth/migrations/002_session_context_version.sql",
+      "sha256": "d714b11393e2c7ec8dab92a5c587228d172ef19c2339e35c5de41fc637734476"
+    },
+    {
+      "path": "services/auth/migrations/003_import_operation_grants.sql",
+      "sha256": "88a0537082e35c3749c12e2d9bbf0dbf54863dade1554fff8c09f04b0a757b82"
+    },
+    {
+      "path": "services/auth/scripts/context_regression_test.py",
+      "sha256": "a9a2e3ead5c1f2ad6a1d156b4a8f4a930e9ee227617932b4728355847c916d28"
+    },
+    {
+      "path": "services/auth/scripts/dev_setup.py",
+      "sha256": "ccaff8363c5933083ac87059e4a76fca1396b451febe64c963784ec6f144b4a5"
+    },
+    {
+      "path": "services/auth/scripts/http_test.py",
+      "sha256": "d7c8f1fd662a4e97b18ce190a0ecfd3be372bb4c737618f2a0c3ea2ef0d4e8b3"
+    },
+    {
+      "path": "services/auth/scripts/migrate_context_version.py",
+      "sha256": "416fccac8cbc956b784a368a805b70cae84fa24e934e4d4bcc00aa1b39796d95"
+    },
+    {
+      "path": "services/auth/scripts/migrate_operation_grants.py",
+      "sha256": "7d64cb4168d16bb86e525e705da8dfbe7f527f65e4952c0877c4da7f656b843f"
+    },
+    {
+      "path": "services/auth/scripts/operation_openapi.py",
+      "sha256": "bb17bf4bdd5895a80ce551967d86ebfc166a5d0cf5c009a95a56d9ae22c4dbba"
+    },
+    {
+      "path": "services/auth/scripts/provision_keys.py",
+      "sha256": "47079b608eeaede9f45c4e2793a22fe87c712e120e51acdc8bfb56e44d43ca17"
+    },
+    {
+      "path": "services/auth/scripts/run_local.py",
+      "sha256": "95aa706c63ecdaa5327ccc35e42eaba49e61f50ba516e46a66295fa5f425e1d8"
+    },
+    {
+      "path": "services/auth/scripts/run_operation_profile.py",
+      "sha256": "b83bc62b438011750f602156876e66a7343b5200f6646976004421a36ad14972"
+    },
+    {
+      "path": "services/auth/scripts/write_openapi.py",
+      "sha256": "93c83a291b5c5277de0671ba71b3ba5ee2fdbe9ac6a075ec55ee4a3451f4eb9b"
+    }
+  ],
+  "image": "cpm-auth:operation-grants-r2-20261009",
+  "image_id": "sha256:1e42e4141d74be649070e0d134cf571087dd762101e455ecc8b10f716f8b4d69",
+  "base_image_id": "sha256:57834f8772e6e929a0eb9b1d7fb41b5e724e89be3f5012aff6743820aca3b607",
+  "binary_sha256": "0871158f795469930b92d9936fd29f2813a906ce2211d004f18ac673096155e6",
+  "openapi_operations": 16,
+  "checks": {
+    "go_test_race_all": "PASS 8.351s; explicit SQL opt-in test skipped in this run",
+    "go_vet_all": "PASS",
+    "go_build_linux_arm64": "PASS",
+    "independent_readonly_review": "PASS after nanosecond expiry fix",
+    "sql_temporary_table_race": "PASS 1.939s; faithful migration003; MaxOpen1; no cross-connection InnoDB contention proof",
+    "private_profile_hermetic_guards": "PASS 8 cases",
+    "docker_candidate_build": "PASS"
+  },
+  "runtime_deployed": false,
+  "permanent_ddl_applied": false,
+  "private_credentials_provisioned": true,
+  "shared_native_http_rabbit_ui_chain": "NOT RUN",
+  "notes": [
+    "Only isolated connection-owned temporary Auth metadata table created and auto-dropped; shared tables/accounts/permissions/sessions untouched.",
+    "No wire bodies, source rows or bearers stored in Auth.",
+    "Recovery receipt-only; possible native commit remains UNKNOWN until matching native receipt.",
+    "Post-review operational hardening: migration runner verifies issuance unique index, all index columns, ASCII binary collation, datetime(6), and two CHECK/no-FK constraints. Go source and candidate binary unchanged.",
+    "Optional runner now accepts immutable sha256 image IDs only and --pull never. Auth Go/binary/image/wire unchanged.",
+    "W1 runner failed before CREATE because comment contained semicolon; corrected to send unchanged single frozen migration SQL as one command. No Go/image/wire/DDL changes, no permanent table created or runtime restarted by failed runner. New helper manifest requires renewed window ACK."
+  ],
+  "previous_source_manifest_sha256": "94f4fbcaa26a8ee77e1020e4dadd3063f4525b8756f917416375296d4d31add6"
+}

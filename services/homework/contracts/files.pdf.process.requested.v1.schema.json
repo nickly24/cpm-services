@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cpm:files.pdf.process.requested.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "message_type": {
+      "const": "files.pdf.process.requested.v1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "const": "homework"
+    },
+    "correlation_id": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "organization_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "division_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output_key": {
+          "type": "string",
+          "maxLength": 700
+        },
+        "source_key": {
+          "type": "string",
+          "maxLength": 700
+        },
+        "source_etag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_source_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 104857600
+            },
+            "max_output_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 104857600
+            },
+            "max_pages": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "dpi": {
+              "type": "integer",
+              "minimum": 72,
+              "maximum": 300
+            },
+            "jpeg_quality": {
+              "type": "integer",
+              "minimum": 35,
+              "maximum": 95
+            }
+          },
+          "required": [
+            "max_source_bytes",
+            "max_output_bytes",
+            "max_pages",
+            "dpi",
+            "jpeg_quality"
+          ]
+        }
+      },
+      "required": [
+        "job_id",
+        "generation",
+        "organization_id",
+        "division_id",
+        "output_key",
+        "source_key",
+        "source_etag",
+        "limits"
+      ]
+    }
+  },
+  "required": [
+    "message_id",
+    "message_type",
+    "schema_version",
+    "occurred_at",
+    "producer",
+    "correlation_id",
+    "payload"
+  ]
+}

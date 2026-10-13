@@ -1,0 +1,7 @@
+.env
+local/
+schema/*.json
+schema/*.sql
+__pycache__/
+.venv/
+!schema/extensions.json

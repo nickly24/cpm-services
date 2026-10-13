@@ -1,0 +1,47 @@
+# Additive overlay; merge with compose.yaml and compose.homework.yaml.
+# Never use this dev configuration with a production database.
+services:
+  calculate:
+    environment:
+      CALCULATE_RATINGS_URL: http://ratings:8012
+  ratings:
+    profiles: [ratings]
+    build:
+      context: ../services/ratings
+    image: cpm-ratings:dev
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      RATINGS_LISTEN_ADDR: "0.0.0.0:8012"
+      RATINGS_AUTH_URL: http://auth:8002
+      RATINGS_CORE_URL: http://core:8003
+      RATINGS_HOMEWORK_URL: http://homework:8006
+      RATINGS_TESTS_URL: http://tests:8004
+      RATINGS_CALCULATE_URL: http://calculate:8005
+      RATINGS_EXTERNAL_TESTS_MODE: ${RATINGS_EXTERNAL_TESTS_MODE:-dev_internal_only}
+      RATINGS_EXAMS_MODE: ${RATINGS_EXAMS_MODE:-dev_empty}
+      RATINGS_EXAMS_URL: ${RATINGS_EXAMS_URL:-}
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:?}
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:?Run rabbit-prepare first}
+    ports:
+      - "127.0.0.1:8012:8012"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, /ratings, healthcheck]
+      interval: 5s
+      timeout: 6s
+      retries: 12
+      start_period: 5s
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}

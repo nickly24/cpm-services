@@ -1,0 +1,8 @@
+# Optional Core-only overlay; the coordinator pins an immutable local image ID.
+services:
+  core:
+    image: ${CORE_OPERATIONS_IMAGE:?Frozen sha256 Core image required}
+    environment:
+      AUTH_OPERATIONS_CORE_KEY: ${AUTH_OPERATIONS_CORE_KEY:?}
+      CORE_OPERATION_DELIVERY_KEY: ${CORE_OPERATION_DELIVERY_KEY:?}
+      CORE_CARDS_OPERATION_KEY: ${CORE_CARDS_OPERATION_KEY:?}

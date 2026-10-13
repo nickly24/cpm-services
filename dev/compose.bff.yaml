@@ -1,0 +1,57 @@
+# Independent project: never creates/restarts Auth/Core/domain services or RabbitMQ.
+name: cpm-bff
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: [sh, -c, 'exec /usr/local/bin/docker-entrypoint.sh redis-server --appendonly yes --appendfsync everysec --maxmemory 128mb --maxmemory-policy noeviction --requirepass "$$BFF_REDIS_PASSWORD"']
+    env_file:
+      - path: ./local/bff-redis.env
+        required: true
+    ports: ["127.0.0.1:6379:6379"]
+    networks: [cpm-dev]
+    volumes: [bff-sessions:/data]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$BFF_REDIS_PASSWORD" redis-cli ping']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+  bff:
+    build: ../services/bff
+    image: cpm-bff:dev
+    ports: ["127.0.0.1:8001:8001"]
+    networks: [cpm-dev]
+    environment:
+      BFF_DOCKER: "1"
+      BFF_REDIS_ADDR: "redis:6379"
+    env_file:
+      - path: ./local/bff-redis.env
+        required: true
+      - path: ./local/gateway-context.env
+        required: false
+    depends_on:
+      redis:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, /bff, healthcheck]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+networks:
+  cpm-dev:
+    external: true
+    name: cpm-dev_default
+volumes:
+  bff-sessions:

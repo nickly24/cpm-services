@@ -1,0 +1,57 @@
+#!/bin/sh
+set -eu
+BASE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -d /Applications/Docker.app/Contents/Resources/bin ]; then
+  PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+  export PATH
+fi
+DOCKER_CLI=$(command -v docker || true)
+if [ -z "$DOCKER_CLI" ]; then DOCKER_CLI=/Applications/Docker.app/Contents/Resources/bin/docker; fi
+PYTHON="$BASE/.venv/bin/python"
+
+ratings_compose() {
+  if [ ! -f "$BASE/local/homework-compose.env" ] || [ ! -f "$BASE/local/ratings-compose.env" ]; then
+    echo 'Prepare homework first, then run ./dev/ratings prepare.' >&2
+    exit 2
+  fi
+  "$PYTHON" "$BASE/scripts/ratings_env.py" check
+  "$DOCKER_CLI" compose --project-directory "$BASE" --env-file "$BASE/.env" \
+    --env-file "$BASE/local/homework-compose.env" --env-file "$BASE/local/ratings-compose.env" \
+    -f "$BASE/compose.yaml" -f "$BASE/compose.homework.yaml" -f "$BASE/compose.ratings.yaml" \
+    --profile auth --profile core --profile rabbit --profile tests --profile calculate \
+    --profile homework --profile ratings "$@"
+}
+
+case "${1:-status}" in
+  prepare) "$PYTHON" "$BASE/scripts/ratings_env.py" prepare ;;
+  config) "$PYTHON" "$BASE/scripts/ratings_env.py" config ;;
+  up) ratings_compose up -d --no-deps --build ratings calculate ;;
+  start) ratings_compose up -d --no-deps ratings calculate ;;
+  start-ratings) ratings_compose up -d --no-deps ratings ;;
+  offline-up)
+    "$PYTHON" "$BASE/scripts/ratings_env.py" offline-build
+    ratings_compose up -d --no-deps ratings calculate
+    ;;
+  offline-ratings-up)
+    "$PYTHON" "$BASE/scripts/ratings_env.py" offline-build --ratings-only
+    ratings_compose up -d --no-deps ratings
+    ;;
+  offline-calculate-up)
+    "$PYTHON" "$BASE/scripts/ratings_env.py" offline-build --calculate-only
+    ratings_compose up -d --no-deps calculate
+    ;;
+  offline-integration-up)
+    "$PYTHON" "$BASE/scripts/ratings_env.py" offline-build --sources
+    ratings_compose up -d --no-deps core tests homework calculate ratings
+    ;;
+  integration-up) ratings_compose up -d --no-deps --build core tests homework calculate ratings ;;
+  status) ratings_compose ps ratings calculate ;;
+  logs) ratings_compose logs --tail 60 ratings ;;
+  down)
+    # Removing the ratings container must never stop the shared calculate worker,
+    # broker, owner services, databases, or their volumes.
+    ratings_compose stop ratings
+    ratings_compose rm -f ratings
+    ;;
+  *) echo 'Usage: ./dev/ratings prepare|config|up|start|offline-up|offline-ratings-up|offline-calculate-up|offline-integration-up|integration-up|status|logs|down' >&2; exit 2 ;;
+esac

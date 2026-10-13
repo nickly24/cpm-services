@@ -1,0 +1,249 @@
+name: cpm-dev
+services:
+  rabbitmq:
+    profiles: [rabbit]
+    image: ${RABBITMQ_IMAGE:-rabbitmq:4.3.6-management}
+    hostname: cpm-dev-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-cpm_dev}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-cpm_dev}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:-}
+      RABBITMQ_NODENAME: rabbit@cpm-dev-rabbitmq
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    mem_limit: 768m
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD-SHELL, "gosu rabbitmq rabbitmq-diagnostics -q check_running && gosu rabbitmq rabbitmq-diagnostics -q check_local_alarms"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  mysql:
+    image: ${MYSQL_IMAGE:?Set MYSQL_IMAGE in .env}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-13306}:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--event-scheduler=OFF"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql --protocol=TCP -h 127.0.0.1 -u $$MYSQL_USER -D $$MYSQL_DATABASE -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    mem_limit: 1536m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  mongo:
+    image: ${MONGO_IMAGE:?Set MONGO_IMAGE in .env}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27018}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:?}
+    command: ["--wiredTigerCacheSizeGB", "0.5"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'if (!db.getSiblingDB(\"admin\").auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD).ok) quit(1); quit(db.adminCommand({ping:1}).ok ? 0 : 1)' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    mem_limit: 1536m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  auth:
+    profiles: [auth]
+    build:
+      context: ../services/auth
+    image: cpm-auth:dev
+    restart: unless-stopped
+    user: "${AUTH_UID:-501}:${AUTH_GID:-20}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      AUTH_LISTEN_ADDR: "0.0.0.0:8002"
+      AUTH_PRIVATE_KEY_FILE: /run/auth-keys/auth-private.pem
+      AUTH_ISSUER: cpm-auth-dev
+      AUTH_AUDIENCE: cpm-services
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:-}
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - auth-keys:/run/auth-keys:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, /auth, healthcheck]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 5s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  core:
+    profiles: [core]
+    build:
+      context: ../services/core
+    image: cpm-core:dev
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      CORE_LISTEN_ADDR: "0.0.0.0:8003"
+      CORE_AUTH_URL: http://auth:8002
+      CORE_REPORTS_TESTS_URL: http://tests:8004
+      CORE_REPORTS_EXAMS_URL: http://host.docker.internal:8010
+      CORE_REPORTS_ATTENDANCE_URL: http://attendance:8013
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:-}
+    ports:
+      - "127.0.0.1:8003:8003"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, /core, healthcheck]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  tests:
+    profiles: [tests]
+    build:
+      context: ../services/tests
+    image: cpm-tests:dev
+    env_file:
+      - path: ./local/gateway-context.env
+        required: false
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      core:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    environment:
+      MONGO_HOST: mongo
+      MONGO_PORT: "27017"
+      MONGO_DATABASE: ${MONGO_DATABASE:?}
+      MONGO_USER: ${MONGO_USER:?}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?}
+      TESTS_LISTEN_ADDR: "0.0.0.0:8004"
+      TESTS_AUTH_URL: http://auth:8002
+      TESTS_CORE_URL: http://core:8003
+      TESTS_CALCULATE_URL: http://calculate:8005
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:?}
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:?Run rabbit-prepare first}
+    ports:
+      - "127.0.0.1:8004:8004"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, /tests, healthcheck]
+      interval: 5s
+      timeout: 6s
+      retries: 12
+      start_period: 5s
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  calculate:
+    profiles: [calculate]
+    build:
+      context: ../services/calculate
+    image: cpm-calculate:dev
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      tests:
+        condition: service_healthy
+    environment:
+      MONGO_HOST: mongo
+      MONGO_PORT: "27017"
+      MONGO_DATABASE: ${MONGO_DATABASE:?}
+      MONGO_USER: ${MONGO_USER:?}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?}
+      CALCULATE_LISTEN_ADDR: "0.0.0.0:8005"
+      CALCULATE_TESTS_URL: http://tests:8004
+      CALCULATE_GRADING_WORKERS: "${CALCULATE_GRADING_WORKERS:-4}"
+      CALCULATE_RECEIPT_WORKERS: "${CALCULATE_RECEIPT_WORKERS:-4}"
+      CALCULATE_MONGO_POOL_SIZE: "${CALCULATE_MONGO_POOL_SIZE:-10}"
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:?}
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:?Run rabbit-prepare first}
+    ports:
+      - "127.0.0.1:8005:8005"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, /calculate, healthcheck]
+      interval: 5s
+      timeout: 6s
+      retries: 12
+      start_period: 5s
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  rabbitmq-data:
+  mysql-data:
+  mongo-data:
+  auth-keys:
+    external: true
+    name: cpm-dev_auth-keys

@@ -1,0 +1,80 @@
+rule_files:
+  - rules.yaml
+evaluation_interval: 15s
+tests:
+  - name: durable backlog remains visible after RabbitMQ has acknowledged messages
+    interval: 15s
+    input_series:
+      - series: 'cpm_metrics_collector_success{job="calculate",instance="calculate:8005"}'
+        values: '1+0x32'
+      - series: 'cpm_metrics_collector_last_success_timestamp_seconds{job="calculate",instance="calculate:8005"}'
+        values: '0+15x32'
+      - series: 'cpm_calculate_inbox_messages{kind="initial_grade",status="received",job="calculate",instance="calculate:8005"}'
+        values: '10+0x32'
+      - series: 'cpm_metrics_collector_success{job="calculate",instance="calculate-replica:8005"}'
+        values: '1+0x32'
+      - series: 'cpm_metrics_collector_last_success_timestamp_seconds{job="calculate",instance="calculate-replica:8005"}'
+        values: '0+15x32'
+      - series: 'cpm_calculate_inbox_messages{kind="initial_grade",status="received",job="calculate",instance="calculate-replica:8005"}'
+        values: '10+0x32'
+      - series: 'cpm_calculate_oldest_active_job_age_seconds{kind="initial_grade",status="received",job="calculate",instance="calculate:8005"}'
+        values: '150+0x32'
+      - series: 'cpm_calculate_oldest_active_job_age_seconds{kind="content",status="received",job="calculate",instance="calculate:8005"}'
+        values: '30+0x32'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: CPMInitialGradingDelayed
+        exp_alerts:
+          - exp_labels: {kind: initial_grade, severity: warning}
+            exp_annotations: {summary: "An initial grading job has waited more than two minutes"}
+      - eval_time: 2m
+        alertname: CPMBackgroundGradingDelayed
+        exp_alerts: []
+    promql_expr_test:
+      - expr: 'cpm:calculate_pending_jobs{kind="initial_grade"}'
+        eval_time: 2m
+        exp_samples:
+          - labels: '{__name__="cpm:calculate_pending_jobs",kind="initial_grade"}'
+            value: 10
+  - name: failed collection does not turn stale backlog into a fresh backlog alarm
+    interval: 15s
+    input_series:
+      - series: 'cpm_metrics_collector_success{job="calculate",instance="calculate:8005"}'
+        values: '0+0x32'
+      - series: 'cpm_metrics_collector_last_success_timestamp_seconds{job="calculate",instance="calculate:8005"}'
+        values: '0+0x32'
+      - series: 'cpm_calculate_oldest_active_job_age_seconds{kind="initial_grade",status="received",job="calculate",instance="calculate:8005"}'
+        values: '150+0x32'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: CPMInitialGradingDelayed
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: CPMMetricsCollectorFailed
+        exp_alerts:
+          - exp_labels: {job: calculate, instance: "calculate:8005", severity: warning}
+            exp_annotations:
+              summary: "CPM backlog/session collector failed or became stale"
+              description: "Do not interpret a successful HTTP scrape as a successful backend collection."
+  - name: unavailable scrape and HTTP error rate alerts
+    interval: 15s
+    input_series:
+      - series: 'up{job="bff",instance="bff:8001"}'
+        values: '0+0x32'
+      - series: 'cpm_http_requests_total{job="tests",route="POST /v1/tests/attempts/{attempt}/finalize",method="POST",status="500"}'
+        values: '0+3x32'
+      - series: 'cpm_http_requests_total{job="tests",route="POST /v1/tests/attempts/{attempt}/finalize",method="POST",status="202"}'
+        values: '0+15x32'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: CPMServiceUnavailable
+        exp_alerts:
+          - exp_labels: {job: bff, instance: "bff:8001", severity: critical}
+            exp_annotations:
+              summary: "CPM service cannot be scraped"
+              description: "The bff endpoint has failed for one minute."
+      - eval_time: 5m
+        alertname: CPMHTTPErrorRateHigh
+        exp_alerts:
+          - exp_labels: {job: tests, severity: warning}
+            exp_annotations: {summary: "More than five percent of CPM HTTP requests return 5xx"}

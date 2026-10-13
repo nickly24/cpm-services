@@ -1,0 +1,4 @@
+scripts
+*.md
+**/*_test.go
+**/__pycache__

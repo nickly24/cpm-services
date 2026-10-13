@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+case "${1:-}" in
+ setup) dev/.venv/bin/python services/attendance/scripts/dev_setup.py ;;
+ up) docker compose -f dev/compose.attendance.yaml --profile attendance up -d --build attendance ;;
+ check) dev/.venv/bin/python services/attendance/scripts/check.py; dev/.venv/bin/python services/attendance/scripts/http_test.py ;;
+ status) docker compose -f dev/compose.attendance.yaml --profile attendance ps ;;
+ logs) docker compose -f dev/compose.attendance.yaml --profile attendance logs --tail=100 attendance ;;
+ *) echo 'Usage: ./dev/attendance setup|up|check|status|logs'; exit 2 ;;
+esac

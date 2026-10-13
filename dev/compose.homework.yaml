@@ -1,0 +1,123 @@
+# Merge with compose.yaml and both .env + local/homework-compose.env.
+# The optional s3-test profile is an isolated testing fixture only.
+services:
+  homework:
+    profiles: [homework]
+    build:
+      context: ../services/homework
+    image: cpm-homework:dev
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+      core:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      HOMEWORK_LISTEN_ADDR: "0.0.0.0:8006"
+      HOMEWORK_AUTH_URL: http://auth:8002
+      HOMEWORK_CORE_URL: http://core:8003
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:?}
+      HOMEWORK_SERVICE_KEY: ${HOMEWORK_SERVICE_KEY:?Run homework_env.py first}
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:?Run rabbit-prepare first}
+      S3_ENDPOINT_URL: ${HOMEWORK_S3_ENDPOINT_URL:?}
+      S3_PUBLIC_ENDPOINT_URL: ${HOMEWORK_S3_PUBLIC_ENDPOINT_URL:?}
+      S3_REGION: ${HOMEWORK_S3_REGION:-us-east-1}
+      S3_BUCKET: ${HOMEWORK_S3_BUCKET:?}
+      S3_ACCESS_KEY_ID: ${HOMEWORK_S3_ACCESS_KEY_ID:?}
+      S3_SECRET_ACCESS_KEY: ${HOMEWORK_S3_SECRET_ACCESS_KEY:?}
+    ports:
+      - "127.0.0.1:8006:8006"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, /homework, healthcheck]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  file-work-service:
+    profiles: [homework]
+    build:
+      context: ../services/file-work-service
+    image: cpm-file-work-service:dev
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      homework:
+        condition: service_healthy
+    environment:
+      LISTEN_ADDR: "0.0.0.0:8007"
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:?}
+      HOMEWORK_URL: http://homework:8006
+      HOMEWORK_SERVICE_KEY: ${HOMEWORK_SERVICE_KEY:?}
+      S3_ENDPOINT_URL: ${HOMEWORK_S3_ENDPOINT_URL:?}
+      S3_REGION: ${HOMEWORK_S3_REGION:-us-east-1}
+      S3_BUCKET: ${HOMEWORK_S3_BUCKET:?}
+      S3_ACCESS_KEY_ID: ${HOMEWORK_S3_ACCESS_KEY_ID:?}
+      S3_SECRET_ACCESS_KEY: ${HOMEWORK_S3_SECRET_ACCESS_KEY:?}
+      PDF_TEMP_DIR: /tmp
+      PDF_PROCESS_TIMEOUT_SECONDS: "120"
+    ports:
+      - "127.0.0.1:8007:8007"
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    healthcheck:
+      test: [CMD, /file-work-service, healthcheck]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  s3-test:
+    profiles: [s3-test]
+    build:
+      context: ./s3-test
+    image: ${HOMEWORK_MINIO_TEST_IMAGE:-cpm-homework-s3-test:dev}
+    restart: unless-stopped
+    command: [server, /data, --console-address, ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+    ports:
+      - "127.0.0.1:19000:9000"
+      - "127.0.0.1:19001:9001"
+    volumes:
+      - homework-s3-test-data:/data
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:9000/minio/health/ready]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  homework-s3-test-data:

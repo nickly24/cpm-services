@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+case "${1:-status}" in
+ prepare) dev/.venv/bin/python services/exams/scripts/dev_setup.py ;;
+ up|start|down|status|logs|build|offline-build|offline-up) dev/.venv/bin/python services/exams/scripts/docker_run.py "${1:-status}" ;;
+ test) CORE_URL=http://127.0.0.1:8003 dev/.venv/bin/python services/exams/scripts/regression.py --http --audit-http ;;
+ *) echo 'Usage: dev/exams prepare|up|start|down|status|logs|build|offline-build|offline-up|test'; exit 2 ;;
+esac

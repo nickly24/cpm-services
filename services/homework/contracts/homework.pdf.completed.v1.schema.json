@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cpm:homework.pdf.completed.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "message_type": {
+      "const": "homework.pdf.completed.v1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "const": "file-work-service"
+    },
+    "correlation_id": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "organization_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "division_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output_key": {
+          "type": "string",
+          "maxLength": 700
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 104857600
+        },
+        "page_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 200
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "error_code": {
+          "type": "string"
+        },
+        "claim_token": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "job_id",
+        "generation",
+        "organization_id",
+        "division_id",
+        "output_key",
+        "size_bytes",
+        "page_count",
+        "sha256",
+        "error_code",
+        "claim_token"
+      ],
+      "description": "Success: positive bytes/pages and lowercase64hex SHA256. Error: known file-work code. output_key must match organization/division/job/generation; message_id includesclaim_token. Homework validates current lease and S3 metadata."
+    }
+  },
+  "required": [
+    "message_id",
+    "message_type",
+    "schema_version",
+    "occurred_at",
+    "producer",
+    "correlation_id",
+    "payload"
+  ]
+}

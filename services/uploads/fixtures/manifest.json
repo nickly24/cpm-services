@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "writes_to_services": false,
+  "files": [
+    {
+      "path": "cards/duplicates.xlsx",
+      "bytes": 3525,
+      "sha256": "b09162bd3c3478f3e0341a1360d18ce1c48215942ebe389db9013b8736cdb3dc"
+    },
+    {
+      "path": "cards/formula.xlsx",
+      "bytes": 3540,
+      "sha256": "c523ff71c0163814c9172366d30571ef6313a985a647ce9d71585b1960bcc9b0"
+    },
+    {
+      "path": "cards/invalid-empty-row.xlsx",
+      "bytes": 3519,
+      "sha256": "dee478bdaad92dd738d9db63e89742d28f73f5301603c33f4560b09a374561c1"
+    },
+    {
+      "path": "cards/invalid-missing-answer.xlsx",
+      "bytes": 3493,
+      "sha256": "41683308b2a1c012f37503ecea83e6798834102cbdf67071bb91324203bf65b1"
+    },
+    {
+      "path": "cards/missing-header.xlsx",
+      "bytes": 3464,
+      "sha256": "1326786d37fbb15d075a13e7663898b96d8653cabfbcf0693f03c511421ebc65"
+    },
+    {
+      "path": "cards/multiline.xlsx",
+      "bytes": 3559,
+      "sha256": "56c3a2a569914a9859d8ac11e0b116f401a6b8fa5f9a6deb20de3454b4b217b1"
+    },
+    {
+      "path": "cards/success.xlsx",
+      "bytes": 3558,
+      "sha256": "a5785292fb42bc2aa1d04c29e22abc5252ca9ab7e553eebfb5404f6234e93269"
+    },
+    {
+      "path": "cards/transform-request.json",
+      "bytes": 113,
+      "sha256": "779c9b918374bd6b40fa8bc8f176a533e626c1a1c7f32f41eb651d4ad4e1335c"
+    },
+    {
+      "path": "exams/assignments-duplicate-examinator.xlsx",
+      "bytes": 3533,
+      "sha256": "ac1489ac3832da6ee859917e9183501b9c16da6c9e30bd44d5e6109bdb3e80bb"
+    },
+    {
+      "path": "exams/assignments-foreign-division.xlsx",
+      "bytes": 3534,
+      "sha256": "2cc5d59e5bebc09d1cbaa7990cd0ae92f26a0480cfac8bc69576b585ba11e2ea"
+    },
+    {
+      "path": "exams/assignments-success.xlsx",
+      "bytes": 3534,
+      "sha256": "ec33276d0aa8e73a00b84858fe0ececb3d0b72c7b62217bf619209f49f6a371b"
+    },
+    {
+      "path": "exams/outside-foreign-org.xlsx",
+      "bytes": 3584,
+      "sha256": "c759c6ebb0793bf6e4fb0a26c8cd0850bb59c2b470b04e253b369ac949c65079"
+    },
+    {
+      "path": "exams/outside-invalid.xlsx",
+      "bytes": 3584,
+      "sha256": "d355ba789227ea348dde2a78be7a3ab64ada41702dafb6cbb0c646fcb52cf9d3"
+    },
+    {
+      "path": "exams/outside-success.xlsx",
+      "bytes": 3584,
+      "sha256": "7f2c2bf3caa7ed9d2621eacba5dabfdcfd8452c42e5aed687fff365213b809b0"
+    },
+    {
+      "path": "exams/questions-205-rows.xlsx",
+      "bytes": 7286,
+      "sha256": "bf1e7b34fe6f07ab314b12e7f0f078a6a3bd7c1cb3f37c7376eaeeb085a30f14"
+    },
+    {
+      "path": "exams/questions-5001-rows.xlsx",
+      "bytes": 86121,
+      "sha256": "59cf5e8a454be1144fa041f7c137926f7385cbe4bd4f7edfbdf5b0931e0a4224"
+    },
+    {
+      "path": "exams/questions-duplicates.xlsx",
+      "bytes": 3572,
+      "sha256": "0588d0f668511e6fad98296c7745c4e8e2e2bc32f3095cfb225775ec8c7f4efd"
+    },
+    {
+      "path": "exams/questions-formula.xlsx",
+      "bytes": 3560,
+      "sha256": "22db070ae74f6fab7d45a5701c7c9eb5a1dd5c06085e84e351ec34483882bdc9"
+    },
+    {
+      "path": "exams/questions-success.xlsx",
+      "bytes": 3620,
+      "sha256": "033dda3b3b1eb323cb2c9490d1846356689393aaec6a526e33fa0867b16e1b8d"
+    },
+    {
+      "path": "expectations.json",
+      "bytes": 5784,
+      "sha256": "08b8e883b72b50006880a482904cdfe6b66bca3a3913829edf07ba140c83b17d"
+    },
+    {
+      "path": "external-results/5001-rows.xlsx",
+      "bytes": 62821,
+      "sha256": "972291cf83a3c415ff712a9ba68b6c4a4555644942742108d6722891b13f7404"
+    },
+    {
+      "path": "external-results/already-existing.xlsx",
+      "bytes": 3509,
+      "sha256": "68927c2c25b232493dcba4fa9b022856fd933d4bacf9d971ae66c63529abe455"
+    },
+    {
+      "path": "external-results/ambiguous-and-unknown.xlsx",
+      "bytes": 3549,
+      "sha256": "47af26ce8270461a4f140c4ec2ed5ff0fc50ce79af045dfee48f22f70d89ca95"
+    },
+    {
+      "path": "external-results/duplicate-names.xlsx",
+      "bytes": 3540,
+      "sha256": "6e35bf73aabcf52554d467816609d6aceeee42a02713b32061fbdcb57a938ff2"
+    },
+    {
+      "path": "external-results/header-row-10.xlsx",
+      "bytes": 3647,
+      "sha256": "715b8dbaf135ca0734f15afa41c381ea33ce45428bc7bc16fc945c6f9b0c213c"
+    },
+    {
+      "path": "external-results/header-row-11.xlsx",
+      "bytes": 3659,
+      "sha256": "23cbfd17e4e7b4f0182d614489b370d95fda1d59fd6227422134be6cee163136"
+    },
+    {
+      "path": "external-results/invalid-percent.xlsx",
+      "bytes": 4223,
+      "sha256": "5234202b9b2e5aae9abebf9900acaf94a598b5fc34d1f78150e5a96bfa69d0a2"
+    },
+    {
+      "path": "external-results/success.xlsx",
+      "bytes": 3840,
+      "sha256": "208a87dd976f5e77f8396e33ec9d2b6b6da804b98e4e64f3794459ea5898d8c5"
+    },
+    {
+      "path": "external-results/zero-and-fraction.xlsx",
+      "bytes": 3580,
+      "sha256": "c32818c38e08956b5777f89df74ee6b433630ba86754827d295d747e289c5529"
+    },
+    {
+      "path": "owner-references/attendance-image.json",
+      "bytes": 460,
+      "sha256": "e57cf53f2f6431c9fb31b29f1d758853a00efec6f12e24466dbccb70375049fd"
+    },
+    {
+      "path": "owner-references/attendance.png",
+      "bytes": 315,
+      "sha256": "c2e79cfad66978a58fa9d8aabf8a5fe04c895351b4b5eb74f8a27c8945d45e6d"
+    },
+    {
+      "path": "owner-references/homework.pdf",
+      "bytes": 611,
+      "sha256": "86a176e84933bf76095ca7b343946b7df6421d0d2d0cdb099970fad7a20c6330"
+    },
+    {
+      "path": "scenarios.json",
+      "bytes": 1932,
+      "sha256": "e3d7987d9882cc8d68ebe721ad20d7351eeb498464d764298e9d541fa5b71d10"
+    },
+    {
+      "path": "security/expanded-limit.xlsx",
+      "bytes": 69958,
+      "sha256": "67fe54aae344f4f6cbc3da272796644ac4186d17e0bcb37c34519949c8a5be44"
+    },
+    {
+      "path": "security/not-pdf.pdf",
+      "bytes": 46,
+      "sha256": "9e90242c3c10c14d043b5a97833ab704f9bfb584ff062103158e855bfdf11cb3"
+    },
+    {
+      "path": "security/not-xlsx.xlsx",
+      "bytes": 51,
+      "sha256": "f446d067c49a765b9fefa7a66aa48361d1b6d8a9cc507612d64a064e7c90e2fc"
+    },
+    {
+      "path": "tests/invalid-json.json",
+      "bytes": 16,
+      "sha256": "649ec5070e2659f67531ac3f674117117ab973d7a9cb1944fda2470584ef849f"
+    },
+    {
+      "path": "tests/native-invalid.json",
+      "bytes": 1205,
+      "sha256": "cc960288abb633dacc6507a3ae2a36ff645340a36378c32b59e1388501a90c75"
+    },
+    {
+      "path": "tests/native-success.json",
+      "bytes": 1274,
+      "sha256": "7f3e2fcffe98fe7519d38ea518067b4c1a0bf3cb8a8ba50720a084b7be54c663"
+    },
+    {
+      "path": "tests/online-test-pad-request.json",
+      "bytes": 1533,
+      "sha256": "a81420db3b10b875d71fdf3b97e582bcc77b2753da895b7dbe5146cabe847393"
+    },
+    {
+      "path": "tests/online-test-pad-unsupported.js",
+      "bytes": 1093,
+      "sha256": "fd7a7280f33dfdc3ea0f5c8900f54da438d6e5048af79b0b6efb5b70fc33e1f2"
+    },
+    {
+      "path": "tests/online-test-pad.js",
+      "bytes": 1092,
+      "sha256": "3994e351ed29bc88145f3454af9933ec942af7220c545d074612d84649b4ff73"
+    },
+    {
+      "path": "users/credentials-101-rows.xlsx",
+      "bytes": 6529,
+      "sha256": "407dd05d8571057dec4e91f75ba223bd4472efcc1bcdd7fb87cad96f53547b39"
+    },
+    {
+      "path": "users/credentials-duplicate-login.xlsx",
+      "bytes": 3675,
+      "sha256": "063eeb7164db699f3d31ad2e576eaef55dc9e2091251685485b53ccb16a2013d"
+    },
+    {
+      "path": "users/credentials-placeholder.csv",
+      "bytes": 228,
+      "sha256": "37a6795cf6d624e564488c2ef00f074193b6436e2669cd5a8635bfd61e9ca33c"
+    },
+    {
+      "path": "users/credentials-placeholder.xlsx",
+      "bytes": 3673,
+      "sha256": "bdb9b75035b6f267ff4855b473516e4dadd97966d556186030f976bcbab599b0"
+    },
+    {
+      "path": "users/legacy-ambiguous-owner.xlsx",
+      "bytes": 3602,
+      "sha256": "ccce65a836cf9b66fa5769aa65162c2080c2dbbcdc5b5f6acb68dfdcd149d805"
+    },
+    {
+      "path": "users/legacy-duplicate-names.xlsx",
+      "bytes": 3623,
+      "sha256": "a1d8164e177d4a1522e31614db67df4294ca25777cac01d48dd729dd7f43ab66"
+    },
+    {
+      "path": "users/legacy-invalid.xlsx",
+      "bytes": 3657,
+      "sha256": "f25eab66c7e571e017342303b839347f72183c7ab22819cdecc9fb6586aca730"
+    },
+    {
+      "path": "users/legacy-missing-header.xlsx",
+      "bytes": 3523,
+      "sha256": "4f74af46d114e0a20ba75cabee71f86357f6d331a02f5251bb5c2a4b95879336"
+    },
+    {
+      "path": "users/legacy-success.xlsx",
+      "bytes": 3679,
+      "sha256": "119a279bf4f8359aa16dcfa7c60ae7a6f157c930be71b89749aa3a1d26d532d4"
+    }
+  ]
+}

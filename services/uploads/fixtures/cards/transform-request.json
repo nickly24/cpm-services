@@ -1,0 +1,7 @@
+{
+  "theme_id": "<runtime-theme-id>",
+  "card_ids": [
+    "<runtime-card-id-1>",
+    "<runtime-card-id-2>"
+  ]
+}

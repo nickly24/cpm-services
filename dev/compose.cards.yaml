@@ -1,0 +1,39 @@
+services:
+  cards:
+    profiles: [cards]
+    build:
+      context: ../services/cards
+    image: cpm-cards:dev
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      CARDS_LISTEN_ADDR: "0.0.0.0:8008"
+      CARDS_AUTH_URL: http://auth:8002
+      CARDS_CORE_URL: http://core:8003
+      CARDS_TESTS_URL: http://tests:8004
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:?}
+      AUTH_OPERATIONS_CARDS_KEY: ${AUTH_OPERATIONS_CARDS_KEY:-}
+      CARDS_OPERATION_DELIVERY_KEY: ${CARDS_OPERATION_DELIVERY_KEY:-}
+      CARDS_CORE_OPERATION_KEY: ${CARDS_CORE_OPERATION_KEY:-}
+    ports:
+      - "127.0.0.1:8008:8008"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, /cards, healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}

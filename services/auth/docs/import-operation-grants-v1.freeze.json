@@ -1,0 +1,18 @@
+{
+  "contract_version": 1,
+  "revision": 2,
+  "sha256": "4aeeccb8497777f1b0fac218bebc52f69dcd162b36683fc3a7756ef5e7bc92bd",
+  "file": "services/auth/docs/import-operation-grants-v1.md",
+  "state": "wire_protocol_frozen_implementation_pending",
+  "owners": [
+    "core",
+    "cards",
+    "tests",
+    "exams",
+    "uploads"
+  ],
+  "coordinator_consistency_ack": true,
+  "runtime_changed": false,
+  "general_qa_release": false,
+  "human_consent_message": "01a12221-7d06-73f3-8f27-8c05f352977a"
+}

@@ -1,0 +1,45 @@
+services:
+  uploads:
+    profiles: [uploads]
+    build:
+      context: ../services/uploads
+    image: ${UPLOADS_OPERATIONS_IMAGE:-cpm-uploads:dev}
+    restart: unless-stopped
+    environment:
+      UPLOADS_DEV_MODE: "true"
+      UPLOADS_LISTEN_ADDR: "0.0.0.0:8014"
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      UPLOADS_AUTH_URL: http://auth:8002
+      UPLOADS_CORE_URL: http://core:8003
+      UPLOADS_CARDS_URL: http://host.docker.internal:8008
+      UPLOADS_EXAMS_URL: http://host.docker.internal:8010
+      UPLOADS_HOMEWORK_URL: http://host.docker.internal:8006
+      UPLOADS_ATTENDANCE_URL: http://host.docker.internal:8013
+      UPLOADS_TESTS_URL: http://tests:8004
+      UPLOADS_RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:?}
+      UPLOADS_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:?}
+      UPLOADS_OPERATIONS_ENABLED: ${UPLOADS_OPERATIONS_ENABLED:-0}
+      AUTH_OPERATIONS_ISSUER_KEY: ${AUTH_OPERATIONS_ISSUER_KEY:-}
+      CORE_OPERATION_DELIVERY_KEY: ${CORE_OPERATION_DELIVERY_KEY:-}
+      CARDS_OPERATION_DELIVERY_KEY: ${CARDS_OPERATION_DELIVERY_KEY:-}
+      TESTS_OPERATION_DELIVERY_KEY: ${TESTS_OPERATION_DELIVERY_KEY:-}
+      EXAMS_OPERATIONS_DELIVERY_KEY: ${EXAMS_OPERATIONS_DELIVERY_KEY:-}
+    ports: ["127.0.0.1:8014:8014"]
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 96
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, /uploads, healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}

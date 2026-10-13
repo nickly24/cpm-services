@@ -1,0 +1,16 @@
+#!/bin/sh
+# Explicit local-only BFF/UI launcher. Does not touch domain containers.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+# External owner and joint BFF/browser acceptance passed on 2026-10-09.
+# Keep the source/production default off; this launcher is explicitly local.
+case "${1:-}" in
+ ui|start-ui|build-ui) export NEXT_PUBLIC_CPM_BFF_EXTERNAL_TESTS_DEV="${NEXT_PUBLIC_CPM_BFF_EXTERNAL_TESTS_DEV:-1}" ;;
+esac
+case "${1:-}" in
+ server) exec "$root/dev/.venv/bin/python" "$root/dev/scripts/bff_run.py" ;;
+ ui) cd "$root/cpm_front_new"; export NEXT_PUBLIC_CPM_BFF_DEV=1; exec npm run dev -- --hostname 127.0.0.1 --port 3001 ;;
+ start-ui) cd "$root/cpm_front_new"; export NEXT_PUBLIC_CPM_BFF_DEV=1; exec npm run start -- --hostname 127.0.0.1 --port 3001 ;;
+ build-ui) cd "$root/cpm_front_new"; export NEXT_PUBLIC_CPM_BFF_DEV=1; exec npm run build ;;
+ *) echo 'Usage: ./dev/bff {server|ui|build-ui|start-ui}' >&2; exit 2 ;;
+esac

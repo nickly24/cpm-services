@@ -1,0 +1,22 @@
+{
+  "status": "source_ready_runtime_pending",
+  "auth_contract_revision": 2,
+  "auth_contract_sha256": "4aeeccb8497777f1b0fac218bebc52f69dcd162b36683fc3a7756ef5e7bc92bd",
+  "source_manifest": "operation-grants-source-manifest.sha256",
+  "source_manifest_sha256": "60e24f482f798f88a80d13f473ee938430468e1c076c83826182e23062170dae",
+  "candidate_image": "cpm-cards:operation-grants-r2-20261009",
+  "candidate_image_id": "sha256:727b467afcb622b340f06fdc7378c99e2860da91f91e32f41587b9746ecc3e22",
+  "candidate_manifest": "sha256:1ce056668a240ae488b135ab6d445a4c5ed7747e69b705f6fc6e7e8b71cec59b",
+  "checks": {
+    "go_test_race": "passed",
+    "go_vet": "passed",
+    "python_compile": "passed",
+    "docker_build": "passed",
+    "real_grant_http": "not_run",
+    "ui_uploads_rabbit": "not_run"
+  },
+  "http_harness_sha256": "3ab62f4c26eb92ba75befaeb6488d8f8cc3983679756d5b9468d41cb00f47c66",
+  "runtime_changed": false,
+  "credentials_provisioned_by_cards": false,
+  "general_qa_release": false
+}

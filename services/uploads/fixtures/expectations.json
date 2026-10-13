@@ -1,0 +1,188 @@
+{
+  "scope": "These assertions are for dev HTTP harnesses after their own owner fixtures are bound. No domain validation is implemented by this generator.",
+  "users/legacy-success.xlsx": {
+    "source_rows": [
+      2,
+      3
+    ],
+    "owner_expected": "two valid synthetic student rows; one without group",
+    "requires": [
+      "fresh synthetic school/proctor target"
+    ]
+  },
+  "users/legacy-duplicate-names.xlsx": {
+    "owner_expected": "actual Core duplicate policy must be exercised; historical preview did not deduplicate new input names"
+  },
+  "users/legacy-ambiguous-owner.xlsx": {
+    "owner_expected": "ambiguity must not select a foreign/same-name account",
+    "requires": [
+      "two same-name students in target division"
+    ]
+  },
+  "users/legacy-invalid.xlsx": {
+    "owner_expected": "row errors; no subject writes"
+  },
+  "users/legacy-missing-header.xlsx": {
+    "source_expected": "missing_source_headers"
+  },
+  "users/credentials-placeholder.csv": {
+    "credentials": "replace marker with generated password in memory only; never use/import the marker",
+    "source_download": "disabled"
+  },
+  "users/credentials-placeholder.xlsx": {
+    "credentials": "replace marker with generated password in memory only; never use/import the marker",
+    "source_download": "disabled"
+  },
+  "users/credentials-duplicate-login.xlsx": {
+    "owner_expected": "duplicate login blocks import"
+  },
+  "users/credentials-101-rows.xlsx": {
+    "owner_expected": "credential row limit exceeded"
+  },
+  "cards/success.xlsx": {
+    "owner_expected": "two rows create"
+  },
+  "cards/duplicates.xlsx": {
+    "owner_expected": "duplicate warning; included warning rows are created unless explicitly excluded"
+  },
+  "cards/multiline.xlsx": {
+    "owner_expected": "one card; embedded blank line and separators stay in single answer"
+  },
+  "cards/invalid-empty-row.xlsx": {
+    "owner_expected": "empty_row_3"
+  },
+  "cards/invalid-missing-answer.xlsx": {
+    "owner_expected": "preview row error"
+  },
+  "cards/formula.xlsx": {
+    "source_expected": "formulas_forbidden"
+  },
+  "external-results/success.xlsx": {
+    "source_rows": [
+      2,
+      3
+    ],
+    "percent": [
+      87.5,
+      100
+    ],
+    "owner_expected": "two results atomically applied only after matching target participants"
+  },
+  "external-results/header-row-10.xlsx": {
+    "source_rows": [
+      11
+    ],
+    "percent": [
+      87.5
+    ]
+  },
+  "external-results/header-row-11.xlsx": {
+    "source_expected": "missing_source_headers"
+  },
+  "external-results/zero-and-fraction.xlsx": {
+    "source_rows": [
+      2,
+      3
+    ],
+    "percent": [
+      0,
+      0.875
+    ],
+    "correct_count": [
+      0,
+      1
+    ],
+    "number_format_scaling": false
+  },
+  "external-results/duplicate-names.xlsx": {
+    "owner_expected": "duplicate name blocks entire batch; patronymic ignored"
+  },
+  "external-results/ambiguous-and-unknown.xlsx": {
+    "owner_expected": "ambiguity/unmatched blocks entire batch"
+  },
+  "external-results/invalid-percent.xlsx": {
+    "source_expected": "invalid_source_cell_2_percent",
+    "owner_expected": "invalid/null/out-of-range scores prevent apply"
+  },
+  "external-results/already-existing.xlsx": {
+    "owner_expected": "existing result prevents batch/overwrite",
+    "requires": [
+      "seed existing result"
+    ]
+  },
+  "external-results/5001-rows.xlsx": {
+    "source_expected": "row_limit_exceeded"
+  },
+  "tests/native-success.json": {
+    "owner_expected": "single/multiple/text questions validated by Tests",
+    "requires": [
+      "existing synthetic direction"
+    ]
+  },
+  "tests/native-invalid.json": {
+    "owner_expected": "duplicate questionId, multiple correct single answers and empty text answer rejected"
+  },
+  "tests/online-test-pad.js": {
+    "source_expected": "exact sourceText wrapped without execution",
+    "owner_expected": "types10/210/410/420 conversion; warnings retained"
+  },
+  "tests/online-test-pad-unsupported.js": {
+    "owner_expected": "unsupported answer type rejected by Tests"
+  },
+  "tests/invalid-json.json": {
+    "source_expected": "invalid_json"
+  },
+  "exams/questions-success.xlsx": {
+    "owner_expected": "questions added by Exams"
+  },
+  "exams/questions-duplicates.xlsx": {
+    "owner_expected": "duplicate question row errors"
+  },
+  "exams/questions-205-rows.xlsx": {
+    "owner_expected": "205 preview rows delivered; no truncation at100/200",
+    "commit_scope": "fresh synthetic exam only"
+  },
+  "exams/questions-5001-rows.xlsx": {
+    "owner_expected": "row limit exceeded"
+  },
+  "exams/questions-formula.xlsx": {
+    "source_expected": "formulas_forbidden"
+  },
+  "exams/assignments-success.xlsx": {
+    "owner_expected": "student assignment and valid two-person commission",
+    "requires": [
+      "bind dev logins in one target division"
+    ]
+  },
+  "exams/assignments-duplicate-examinator.xlsx": {
+    "owner_expected": "duplicate examinator rejected"
+  },
+  "exams/assignments-foreign-division.xlsx": {
+    "owner_expected": "foreign target participation rejected"
+  },
+  "exams/outside-success.xlsx": {
+    "owner_expected": "numeric17.5 points and grade4 add result"
+  },
+  "exams/outside-invalid.xlsx": {
+    "owner_expected": "text points/grade6 rejected"
+  },
+  "exams/outside-foreign-org.xlsx": {
+    "owner_expected": "foreign organization student rejected"
+  },
+  "owner-references/homework.pdf": {
+    "owner": "homework",
+    "bytes": "direct S3",
+    "uploads_import": false
+  },
+  "owner-references/attendance.png": {
+    "owner": "attendance",
+    "uploads_import": false
+  },
+  "security/not-xlsx.xlsx": {
+    "source_expected": "invalid_xlsx"
+  },
+  "security/expanded-limit.xlsx": {
+    "source_expected": "decompression_limit",
+    "expanded_bytes": 68157440
+  }
+}

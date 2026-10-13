@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Optional Core-only operation-grant deployment, never key provisioning.
+
+Without --run this emits a non-secret preparation result and reads no credentials,
+Docker or database. The coordinator invokes --run only in an ACKed Core window.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+CREDENTIALS = ROOT / "dev/local/import-operation-credentials.env"
+CANONICAL_KEYS = (
+    "AUTH_OPERATIONS_ISSUER_KEY", "AUTH_OPERATIONS_CORE_KEY", "AUTH_OPERATIONS_CARDS_KEY",
+    "AUTH_OPERATIONS_TESTS_KEY", "AUTH_OPERATIONS_EXAMS_KEY", "CORE_OPERATION_DELIVERY_KEY",
+    "CARDS_OPERATION_DELIVERY_KEY", "TESTS_OPERATION_DELIVERY_KEY",
+    "EXAMS_OPERATIONS_DELIVERY_KEY", "CARDS_CORE_OPERATION_KEY",
+)
+ALIAS = "CORE_CARDS_OPERATION_KEY"
+CORE_KEYS = ("AUTH_OPERATIONS_CORE_KEY", "CORE_OPERATION_DELIVERY_KEY", ALIAS)
+IMAGE = re.compile(r"^sha256:[0-9a-f]{64}$")
+KEY_VALUE = re.compile(r"^[A-Za-z0-9_-]{32,256}$")
+
+
+class DeploymentError(Exception):
+    pass
+
+
+def private_text(path):
+    """Read the already provisioned file through one pinned, non-symlink FD."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
+    except OSError:
+        raise DeploymentError("private_file_unavailable") from None
+    try:
+        before = os.fstat(fd)
+        if (not stat.S_ISREG(before.st_mode) or stat.S_IMODE(before.st_mode) != 0o600
+                or before.st_uid != os.getuid() or before.st_size > 32768):
+            raise DeploymentError("private_file_security_invalid")
+        raw = os.read(fd, 32769)
+        after = os.fstat(fd)
+        if len(raw) > 32768 or len(raw) != before.st_size or (
+                before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+                after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+            raise DeploymentError("private_file_changed")
+        try:
+            return raw.decode("utf-8")
+        except UnicodeError:
+            raise DeploymentError("private_file_format_invalid") from None
+    finally:
+        os.close(fd)
+
+
+def parse_private(text, allowed=None):
+    values = {}
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if (not separator or not re.fullmatch(r"[A-Z][A-Z0-9_]*", key)
+                or key in values or (allowed is not None and key not in allowed)
+                or not value or value != value.strip() or "\x00" in value):
+            raise DeploymentError("private_file_format_invalid")
+        values[key] = value
+    return values
+
+
+def read_credentials(path, environ, internal_key):
+    allowed = set(CANONICAL_KEYS) | {ALIAS}
+    if allowed.intersection(environ):
+        raise DeploymentError("operation_environment_override_rejected")
+    values = parse_private(private_text(path), allowed)
+    if not set(CANONICAL_KEYS).issubset(values) or any(
+            not KEY_VALUE.fullmatch(values[key]) for key in CANONICAL_KEYS):
+        raise DeploymentError("operation_credentials_invalid")
+    if len({values[key] for key in CANONICAL_KEYS}) != len(CANONICAL_KEYS):
+        raise DeploymentError("operation_credentials_not_distinct")
+    if ALIAS in values and values[ALIAS] != values["CARDS_CORE_OPERATION_KEY"]:
+        raise DeploymentError("cards_core_alias_mismatch")
+    if not internal_key or internal_key in {values[key] for key in CANONICAL_KEYS}:
+        raise DeploymentError("existing_internal_credential_conflict")
+    values[ALIAS] = values["CARDS_CORE_OPERATION_KEY"]
+    # Never propagate issuer, other owner, or unrelated delivery credentials.
+    return {key: values[key] for key in CORE_KEYS}
+
+
+def deploy(image, environ):
+    if not IMAGE.fullmatch(image) or "CORE_OPERATIONS_IMAGE" in environ:
+        raise DeploymentError("immutable_image_required")
+    baseline = parse_private(private_text(ROOT / "dev/.env"))
+    if (set(CANONICAL_KEYS) | {ALIAS}).intersection(baseline):
+        raise DeploymentError("base_operation_credentials_rejected")
+    if baseline.get("MYSQL_DATABASE") != "cpm_dev" or baseline.get("MYSQL_PORT") != "13306":
+        raise DeploymentError("fixed_dev_scope_required")
+    if "AUTH_INTERNAL_KEY" in environ and environ["AUTH_INTERNAL_KEY"] != baseline.get("AUTH_INTERNAL_KEY"):
+        raise DeploymentError("internal_environment_override_rejected")
+    keys = read_credentials(CREDENTIALS, environ, baseline.get("AUTH_INTERNAL_KEY"))
+    docker = "/Applications/Docker.app/Contents/Resources/bin/docker"
+    inspected = subprocess.run([docker, "image", "inspect", "--format", "{{.Id}}", image],
+                               capture_output=True, text=True, timeout=15, check=False)
+    if inspected.returncode or inspected.stdout.strip() != image:
+        raise DeploymentError("frozen_image_unavailable")
+    child_env = dict(environ)
+    child_env.update(keys)
+    child_env["CORE_OPERATIONS_IMAGE"] = image
+    command = [docker, "compose", "--project-directory", str(ROOT / "dev"),
+               "--env-file", str(ROOT / "dev/.env"), "-f", str(ROOT / "dev/compose.yaml"),
+               "-f", str(ROOT / "dev/compose.core-operations.yaml"), "--profile", "core", "--profile", "auth",
+               "up", "-d", "--no-deps", "--no-build", "--pull", "never", "--wait",
+               "--wait-timeout", "90", "core"]
+    completed = subprocess.run(command, env=child_env, capture_output=True, text=True,
+                               timeout=120, check=False)
+    if completed.returncode:
+        # Docker errors/config output may contain expanded environment; omit it.
+        raise DeploymentError("core_deployment_failed")
+    return {"status": "ready", "service": "core", "image": image,
+            "provisioned_keys": False, "other_services_changed": False}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=["up"])
+    parser.add_argument("--image", required=True)
+    parser.add_argument("--run", action="store_true")
+    args = parser.parse_args()
+    if not IMAGE.fullmatch(args.image):
+        parser.error("--image requires a frozen sha256 image ID")
+    if not args.run:
+        print(json.dumps({"status": "prepared", "service": "core", "image": args.image,
+                          "private_files_read": False, "runtime_control": False}))
+        return
+    try:
+        result = deploy(args.image, os.environ)
+    except (DeploymentError, OSError, subprocess.SubprocessError) as error:
+        code = str(error) if isinstance(error, DeploymentError) else "core_deployment_unavailable"
+        print(json.dumps({"status": "failed", "code": code}), file=sys.stderr)
+        raise SystemExit(1) from None
+    print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()

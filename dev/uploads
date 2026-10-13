@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+UPLOADS_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+case "${1:-status}" in
+ prepare) exec "$UPLOADS_ROOT/dev/.venv/bin/python" "$UPLOADS_ROOT/services/uploads/scripts/dev_setup.py" ;;
+ run)
+  shift
+  (cd "$UPLOADS_ROOT/services/uploads" && "$HOME/.local/bin/go" build -o "$UPLOADS_ROOT/dev/local/uploads-run" ./cmd/uploads)
+  exec "$UPLOADS_ROOT/dev/.venv/bin/python" "$UPLOADS_ROOT/services/uploads/scripts/run_local.py" "$@"
+  ;;
+ docker-up)
+  export UPLOADS_OPERATIONS_ENABLED=0
+  unset UPLOADS_OPERATIONS_IMAGE
+  exec /Applications/Docker.app/Contents/Resources/bin/docker compose --project-directory "$UPLOADS_ROOT/dev" --env-file "$UPLOADS_ROOT/dev/.env" -f "$UPLOADS_ROOT/dev/compose.yaml" -f "$UPLOADS_ROOT/dev/compose.uploads.yaml" --profile uploads up -d --build --no-deps uploads
+  ;;
+ operations)
+  shift
+  exec "$UPLOADS_ROOT/dev/.venv/bin/python" "$UPLOADS_ROOT/services/uploads/scripts/run_operation_profile.py" "$@"
+  ;;
+ status) exec /usr/bin/curl -fsS http://127.0.0.1:8014/health/ready ;;
+ test) shift; exec "$UPLOADS_ROOT/dev/.venv/bin/python" "$UPLOADS_ROOT/services/uploads/scripts/http_test.py" "$@" ;;
+ *) echo 'Usage: ./dev/uploads prepare|run [--operations]|docker-up|operations --image sha256:... [--check]|status|test' >&2; exit 2 ;;
+esac

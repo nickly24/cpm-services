@@ -1,0 +1,428 @@
+{
+  "state": "final_source_and_image_frozen_runtime_pending",
+  "created_at_utc": "2026-10-09T20:24:13.643074+00:00",
+  "contract_revision": 2,
+  "contract_sha256": "4aeeccb8497777f1b0fac218bebc52f69dcd162b36683fc3a7756ef5e7bc92bd",
+  "source_manifest_sha256": "4e72313619deb384b21124b2ca3b2ab420c236b1ce3bb209598b1c1619454ccc",
+  "files": [
+    {
+      "path": "services/tests/.dockerignore",
+      "sha256": "6de64ece37996b7968e4a448321d338063bf8a6f5b9b7d299baa19d7550b0685"
+    },
+    {
+      "path": "services/tests/Dockerfile",
+      "sha256": "3bf40a36e4fb032063e23388d9cc1bdecf9a55529daac1f5e7e609ddbcc1c49c"
+    },
+    {
+      "path": "services/tests/README.md",
+      "sha256": "02fe8be2b1fe2cef4ba195e59b4a28009076f394efa7e57d7aa13e2f2f1dbc7e"
+    },
+    {
+      "path": "services/tests/cache.md",
+      "sha256": "3b1c5daaafde011f796de696b7d8ef7379770a9eb3282ae7ef5885f9ac883cbc"
+    },
+    {
+      "path": "services/tests/cmd/tests/main.go",
+      "sha256": "45f21ac79e50ee92ed9aa1e866a2ed0fcb476fbdb0630706d1eeaf234f689be2"
+    },
+    {
+      "path": "services/tests/dev-operation-overlay.yaml",
+      "sha256": "37ba9cba4181563d260894bcd2d05977dcbea1d0c2c0c4ad7753679b97ca21f7"
+    },
+    {
+      "path": "services/tests/docs/background-import-contract.md",
+      "sha256": "4d554ab070891669aed0892f4dd37640c3d227638cbe3a8023367de1e0858677"
+    },
+    {
+      "path": "services/tests/docs/external-readiness-contract.md",
+      "sha256": "ef9b77363d4f3865c1b48bdffa74e19ee57754b2263b6faa0e2578c10ff01311"
+    },
+    {
+      "path": "services/tests/docs/external-tests-handoff-2026-10-09.md",
+      "sha256": "b91fc3932b79f08a45e760aa6d5ad40e867c522bf88188c2cc3f3817b72b7f35"
+    },
+    {
+      "path": "services/tests/docs/import-templates-contract.md",
+      "sha256": "880387d7509eb3f32c6f85978bef5e3d4c99dff47a770c8df675b6da83caa18b"
+    },
+    {
+      "path": "services/tests/docs/json-import-contract.md",
+      "sha256": "34b99bb24832d4f52e659ada75d6eeee942ef768f54796f5242c3b78f240e8af"
+    },
+    {
+      "path": "services/tests/external-import-contract.md",
+      "sha256": "24fa2b5f3ce973cecd6e87029b6e4312b44b201258e70665fdd9723e713def70"
+    },
+    {
+      "path": "services/tests/go.mod",
+      "sha256": "5f0124296df0ca6fdf70e6a97d3f46c0b6c5e198bebf4147a76a780cfa60cfe6"
+    },
+    {
+      "path": "services/tests/go.sum",
+      "sha256": "c37de05b4edf6ee3b67e9aaeae0c871e06c52e43dd5509b6540827f88f357c89"
+    },
+    {
+      "path": "services/tests/internal/tests/attempt_internal.go",
+      "sha256": "07e430b20d9b32b93f7af0426be8a625494b2481d5c02d65be3b91f1974b3d0a"
+    },
+    {
+      "path": "services/tests/internal/tests/attempt_routes.go",
+      "sha256": "d83b196835e4e498e378a63d8c6ea44453caea753089e7506773eb2b63df053c"
+    },
+    {
+      "path": "services/tests/internal/tests/attempt_test.go",
+      "sha256": "dc5f5f0d5bb830210ad0488497bbf574b7245fa14ff4da3cffe815f33183c581"
+    },
+    {
+      "path": "services/tests/internal/tests/attempts.go",
+      "sha256": "7b4772d57701e07670c25c3a8c443bfda0acf66aa2048815646b554ea112e305"
+    },
+    {
+      "path": "services/tests/internal/tests/cache_test.go",
+      "sha256": "bb36cb7f4327b05d5f09a74cdc3c762b7b9e98edb79fe808e6506125f6e52643"
+    },
+    {
+      "path": "services/tests/internal/tests/caches.go",
+      "sha256": "689518b17586fcf4400044403b73be5a7e69e8be59feeb140e46c9a72401b914"
+    },
+    {
+      "path": "services/tests/internal/tests/calculation_jobs.go",
+      "sha256": "1e9e8fb863d70cc5e1900fdc6c014054028e03d8b2f495d9e482775027cefc41"
+    },
+    {
+      "path": "services/tests/internal/tests/calculation_jobs_test.go",
+      "sha256": "a0c14288f0c7c247518d82856c191ed896f5bc4aa20dcdf0a4f3bcf393ebd910"
+    },
+    {
+      "path": "services/tests/internal/tests/calculation_results.go",
+      "sha256": "2dc20495f8370136bb274ff1a633b3bd4345017355edff8ce628d946049bfb31"
+    },
+    {
+      "path": "services/tests/internal/tests/canonical.go",
+      "sha256": "b2a992c8792602b9f9c5a55b4f42f74f3fbab2c72b52495dd776ea687317a378"
+    },
+    {
+      "path": "services/tests/internal/tests/cards_contract.go",
+      "sha256": "e9f725bc256f7470ecfbb25f41fe5aedb8bcaa8421293ebe238e7fd4d8cc47f1"
+    },
+    {
+      "path": "services/tests/internal/tests/cards_contract_test.go",
+      "sha256": "4973aa46e3f92a03a8c706c29bd8113c1319695c9fc693b15b9c8ec9d7d214e6"
+    },
+    {
+      "path": "services/tests/internal/tests/catalog.go",
+      "sha256": "e69a345799e6997e191df49ca7c70c33be89aa62c02b4667250e6d30f318f17f"
+    },
+    {
+      "path": "services/tests/internal/tests/catalog_access.go",
+      "sha256": "5e446f644cb55299f11341fe4d1bffaa2ad71fb1591ae94d3d07e98a3c71cbe2"
+    },
+    {
+      "path": "services/tests/internal/tests/catalog_access_test.go",
+      "sha256": "94bad69f38c74eabf52c6244dfdd93ed4cf4d2c4959ecb0ee48e46d1a79bf56f"
+    },
+    {
+      "path": "services/tests/internal/tests/config.go",
+      "sha256": "dbdb9f883ebc8660ca6e91dfd8f44043bf23f22d0fe279f456d867be41ac8e0d"
+    },
+    {
+      "path": "services/tests/internal/tests/content.go",
+      "sha256": "c3f34872baa793c12c93358a7829b792cb9bdfd936872cb8c8d460138ef739aa"
+    },
+    {
+      "path": "services/tests/internal/tests/content_model.go",
+      "sha256": "f57cc712347e1cb066ebc8c82b41e24a1f8fba39ef039d3cafb4890322822e64"
+    },
+    {
+      "path": "services/tests/internal/tests/content_test.go",
+      "sha256": "82332b1cc336424d38c281a656b73b0c253858bfd264881b46861de0cf41cdf4"
+    },
+    {
+      "path": "services/tests/internal/tests/dependencies.go",
+      "sha256": "cb1c48bb79605eff15f0d8dd243472e674f8215d711cb80480caa983ab613321"
+    },
+    {
+      "path": "services/tests/internal/tests/drafts.go",
+      "sha256": "9d3fe5bf8247c6c1da8e24dfca806105d2aebe09f9ad727fde39e0a1e648933d"
+    },
+    {
+      "path": "services/tests/internal/tests/drafts_model.go",
+      "sha256": "69549a5d0a11bab997c317a7ce1d5518fc7369d036d723565713f6e7dc751bba"
+    },
+    {
+      "path": "services/tests/internal/tests/events.go",
+      "sha256": "408dc543879c00af5fe864bfb0a0cf6132c3f1d7b27960fbc635b1637fd5885d"
+    },
+    {
+      "path": "services/tests/internal/tests/external_http.go",
+      "sha256": "ae231992111a7237f1075e1f90f4274c0e2e64e84d2276c1a1cb11cad4d7bd5d"
+    },
+    {
+      "path": "services/tests/internal/tests/external_http_test.go",
+      "sha256": "8f21ce45f398fb57703c9a4969b6883e689fffecaf73866272b82d0e5d62b398"
+    },
+    {
+      "path": "services/tests/internal/tests/external_import.go",
+      "sha256": "25615ab36c3bdb92388bd1e2677e0303bdaee706f5ab5610764b2afbb3999eba"
+    },
+    {
+      "path": "services/tests/internal/tests/external_import_test.go",
+      "sha256": "28cffc45130d03a54b3f78f649bc9879a61f136652a8ab2cb6754f44619c07d2"
+    },
+    {
+      "path": "services/tests/internal/tests/external_models.go",
+      "sha256": "da51a0b9912952861ead5df83b688f3c9fb3fa10f01d0555c530616ae156942c"
+    },
+    {
+      "path": "services/tests/internal/tests/external_people.go",
+      "sha256": "2776b958464f8af673f4668853f088bf427a4de1e62bb59c0b8cd64402680f83"
+    },
+    {
+      "path": "services/tests/internal/tests/external_routes.go",
+      "sha256": "8083d4cb4aaa0752aac0e7cb685e991ae76d40817f93547e6a09d7075c4c93a6"
+    },
+    {
+      "path": "services/tests/internal/tests/external_status.go",
+      "sha256": "a54a4fd85478861370d3dee92f3a3e98764fc4336db38f9cbef2dfa9cf5df65c"
+    },
+    {
+      "path": "services/tests/internal/tests/http.go",
+      "sha256": "efec9f3e28cffe4280dbf33ff91cdd3edace27d3ef517c7af19e868a1e5ce562"
+    },
+    {
+      "path": "services/tests/internal/tests/import_binding.go",
+      "sha256": "a0518376a554fc0d49fda9197137d68dabdbb80f1ff2e11100fb2e6f246e071a"
+    },
+    {
+      "path": "services/tests/internal/tests/import_grants.go",
+      "sha256": "b8e88ed04d33865eea06d8c5c2c2fae836acca60816db8b1ba84817425e29da7"
+    },
+    {
+      "path": "services/tests/internal/tests/import_grants_test.go",
+      "sha256": "d035dfe3169e6bada913edb4cd99ef6733ac4154ca4b4b7505a7f9994858cb63"
+    },
+    {
+      "path": "services/tests/internal/tests/import_prepare.go",
+      "sha256": "5d7fb8159df8fdc2815e911bc5cb11535e92842763890871da06a177f8954f52"
+    },
+    {
+      "path": "services/tests/internal/tests/import_prepare_test.go",
+      "sha256": "ea7f7704e52d785d087f48fe2b3ba2484ddfa2c52358d69c60ad37d3fa775234"
+    },
+    {
+      "path": "services/tests/internal/tests/import_proofs.go",
+      "sha256": "e1579c29129e10dd8f0430757a34f576ddfc8f4854e2997ebd4e3259570cb039"
+    },
+    {
+      "path": "services/tests/internal/tests/import_proofs_test.go",
+      "sha256": "37f78a2097415b003626b379d3b6fb3df48d21785710813586b134e2027b9e83"
+    },
+    {
+      "path": "services/tests/internal/tests/import_receipts.go",
+      "sha256": "4a6ff1fc27b3924b4065833f8c28cc0657e7eaed4e7211dd54f86110cee08941"
+    },
+    {
+      "path": "services/tests/internal/tests/import_receipts_test.go",
+      "sha256": "a8a7bde7f157f85c4171db298729b5ec7f05390e05a54136c8cb5be5bc1bac46"
+    },
+    {
+      "path": "services/tests/internal/tests/import_templates.go",
+      "sha256": "df367dfd2a391d651dc872b5981cde4dfe455eee52cbfb07a7992e8445f8f854"
+    },
+    {
+      "path": "services/tests/internal/tests/import_templates_test.go",
+      "sha256": "f98908b6dd9012ed80c87121e9525dafe99b88ce85ae04970208bce2b6e2fc6b"
+    },
+    {
+      "path": "services/tests/internal/tests/import_wire.go",
+      "sha256": "1d322401335dac88555c7ca7f741c5e447161463b4a722f9e4ab7057559e263f"
+    },
+    {
+      "path": "services/tests/internal/tests/import_wire_test.go",
+      "sha256": "2a810fcc7a896caa552e0a3c57050504e4e477ba66e05dd345c637b6ac2bee16"
+    },
+    {
+      "path": "services/tests/internal/tests/json_import.go",
+      "sha256": "324aa50ca8a081142b5938544500734056de0c74775438ef2fd41350c9ad34de"
+    },
+    {
+      "path": "services/tests/internal/tests/json_import_test.go",
+      "sha256": "68a506db7e4c3c6b0d49b553b022c12bc3bb85203e243eccc5df98d15965fd44"
+    },
+    {
+      "path": "services/tests/internal/tests/model.go",
+      "sha256": "6e46540c177671cc2204f48b53d524463dbd43e5e0b7eb3acd1777a9f91e265a"
+    },
+    {
+      "path": "services/tests/internal/tests/organization_settings.go",
+      "sha256": "1e7b1ad3e089ec3582e97131738e8d1c53002c9105f0f036ffae183bd234d725"
+    },
+    {
+      "path": "services/tests/internal/tests/policy_test.go",
+      "sha256": "e96e8c9c804f762832b5dc7ce5f0d92de9bda95dda6ac8782746d7377c6caa93"
+    },
+    {
+      "path": "services/tests/internal/tests/practice_access.go",
+      "sha256": "818e098cd363b79c1969f5036ba0be38db962b456b4750bc36a5cbb6a5773e3f"
+    },
+    {
+      "path": "services/tests/internal/tests/ratings_snapshot.go",
+      "sha256": "2edaf2e2a4e69a79787431a4acfb7cae60e3675206717147b6fbf45b4bd49ffb"
+    },
+    {
+      "path": "services/tests/internal/tests/ratings_snapshot_external.go",
+      "sha256": "9be802fc4d3f0199720a0bad6c5e94c4b1f3490cd49997116bb258ac1a6a1097"
+    },
+    {
+      "path": "services/tests/internal/tests/ratings_snapshot_mongo_test.go",
+      "sha256": "76f7b31ab9fde37ad3beceba325a3f68bda635fbb62e0f30fa405aaa80498819"
+    },
+    {
+      "path": "services/tests/internal/tests/ratings_snapshot_test.go",
+      "sha256": "bc8df367f2625f26048e4deb11c1eac2453bdc687b8b8ef4ddd9a11feb1a67df"
+    },
+    {
+      "path": "services/tests/internal/tests/routes.go",
+      "sha256": "08d18d4f58b52aaa7004b9684e47489ba690a3f971e42e9216552c8f2dbf3fc5"
+    },
+    {
+      "path": "services/tests/internal/tests/scoring_contract.go",
+      "sha256": "37568b57cd20179d70215a247ccb1c74d5c290fc1584e12923c8793c25209d6e"
+    },
+    {
+      "path": "services/tests/internal/tests/snapshot_json.go",
+      "sha256": "2b805b8447ab0773c302f0a886ac4707ce713f0594aac9ebfb8d0c2589b7e322"
+    },
+    {
+      "path": "services/tests/internal/tests/store.go",
+      "sha256": "904b792fe1008f4c3b6ff822c75a11d3866dd56c3c8bf3236cdaf0d5e6632e6b"
+    },
+    {
+      "path": "services/tests/internal/tests/submission_filters_test.go",
+      "sha256": "51a0302a49af5585f821ac3bdd9fb98f648926abecf152ec9e17a33a7e4d6cff"
+    },
+    {
+      "path": "services/tests/internal/tests/validation.go",
+      "sha256": "ae80563f906bd909485af526c86251172221de3dbeeff656885d3180d541d1fb"
+    },
+    {
+      "path": "services/tests/internal/tests/views.go",
+      "sha256": "af443e4421ecca98bdfa14df9a4b6a15c3e530b0d35be6b4593b4ed565dc37a9"
+    },
+    {
+      "path": "services/tests/scripts/acceptance_race_test.py",
+      "sha256": "cccddd0e3796751b455d337cc4f1b49a984985836fb12ae210447a494fd6b616"
+    },
+    {
+      "path": "services/tests/scripts/dev_setup.py",
+      "sha256": "6a23333608df0251519306f653fb9f2cc77f9a7dd1fb4f7fc96e4818952a0ceb"
+    },
+    {
+      "path": "services/tests/scripts/external_integration_test.py",
+      "sha256": "e65bf2983690a378363ff8ab239e9e064a3443444629b2f0c81c20fadb5cadb3"
+    },
+    {
+      "path": "services/tests/scripts/external_retry_http_test.py",
+      "sha256": "a1026321da479242a90bfc421bb8c846c0ac1c2a905056fb81d731c1a27b1bee"
+    },
+    {
+      "path": "services/tests/scripts/grading_regression_http_test.py",
+      "sha256": "c2a1f12b139ed71c1b98b9c5f7502916a650e89c0f741528cf88be121cf2f19e"
+    },
+    {
+      "path": "services/tests/scripts/grading_test.py",
+      "sha256": "92d40b0b3ccb75a788fa02045cafdacf4203f452c62dc0498211c9398528070b"
+    },
+    {
+      "path": "services/tests/scripts/http_test.py",
+      "sha256": "8a2771ae16c80ef3becef2e6764b27b95a1a06249d12c9dd51c7daff8ba8c532"
+    },
+    {
+      "path": "services/tests/scripts/import_templates_http_test.py",
+      "sha256": "bf809ccc7ff9d361b24617fe4800bf2c2a3011962aaaadabcfd7a6f7d6216277"
+    },
+    {
+      "path": "services/tests/scripts/json_import_http_test.py",
+      "sha256": "a6d152b723da0f3097e671ac450ca77e22cb7ebf599f39482b1f1b9d648bb8f5"
+    },
+    {
+      "path": "services/tests/scripts/operation_grants_http_test.py",
+      "sha256": "8d33f644abad4efc86616d1a634a7eaa3f640107b1cff545cb18d9118e820311"
+    },
+    {
+      "path": "services/tests/scripts/workflow_test.py",
+      "sha256": "f1b0d41cc09fde6b27ae234c15a3edb88a6f071c74a43eca583e99a17df4eec7"
+    }
+  ],
+  "source_file_count": 87,
+  "image": "cpm-tests:operation-grants-r2-20261009",
+  "image_id": "sha256:4fe3a152cd6d0542c86650929f47e31852f49e70fcbd14b66096a20d8059cf12",
+  "binary_sha256": "19d8871c04e354e24e1a7fe3c0332abe8bfd629055824c42f40101d66e7bc8a2",
+  "source_openapi_version": "0.5.0",
+  "native_import_operations": 8,
+  "checks": {
+    "go_test_race_all": "PASS",
+    "top_level_tests": 112,
+    "tests_and_subcases": 261,
+    "new_grant_prepare_boundary_cases": 87,
+    "packages": [
+      {
+        "name": "cpm/tests/internal/tests",
+        "elapsed_seconds": 2.808
+      }
+    ],
+    "go_vet_all": "PASS exit0",
+    "docker_candidate_build": "PASS",
+    "harness_python_syntax": "PASS AST parse/py_compile",
+    "harness_source_preflight": "PASS no credentials/HTTP/DB; native execution NOTRUN",
+    "malformed_auth_errors": "PASS: missing/wrong-case/null/unknown error fields map to503 without native writes; possible apply remains UNKNOWN in worker"
+  },
+  "unit_scope": "native Go handlers, fake Auth/Core HTTP and Mongo driver command evidence; not real-runtime E2E",
+  "runtime_deployed": false,
+  "shared_runtime_changed": false,
+  "credentials_provisioned_by_tests": false,
+  "ddl_applied_by_tests": false,
+  "native_http_harness": "NOTRUN",
+  "uploads_rabbit_ui_chain": "NOTRUN",
+  "general_qa_release": false,
+  "reports": {
+    "race_jsonl": "dev/local/tests-operation-grants-race.jsonl",
+    "harness_notrun": "dev/local/tests-operation-grants-harness-notrun.json",
+    "harness": "services/tests/scripts/operation_grants_http_test.py"
+  },
+  "identity_proof": {
+    "positive_profile_id": 1049,
+    "positive_account_id": 23,
+    "foreign_account_id": 24,
+    "large_account_id": "9007199254740993",
+    "large_profile_id": "9007199254741001",
+    "external_student_account_id": 71,
+    "external_student_profile_id": 101,
+    "native_json_identity": "org/account/native key; OperationHash legacy method/path/payload",
+    "external_request_hash": "normalized command with real initiator account"
+  },
+  "runtime_prerequisites": [
+    "Auth sole-writer permanent schema and credential provisioning",
+    "Auth frozen runtime enabled and exact candidate key mapping",
+    "affected-owner ACKed ordered deployment/probe window",
+    "deploy this frozen Tests image with own two-key overlay",
+    "live origin login with profile/account distinct and foreign otherwise-permitted login",
+    "native HTTP harness, then separately Uploads/Rabbit/UI confirmation-to-owner proof"
+  ],
+  "fixture_plan": {
+    "organization_id": 1001,
+    "division_id": 1001,
+    "active_direction_id": 1056,
+    "retained_own_student_account_id": 534,
+    "retained_own_student_profile_id": 2282,
+    "origin_and_foreign_login": "provided by Auth/Core fixture owner; never infer account from profile",
+    "new_owned_business_fixtures": "2 hidden JSON/OTP tests and 1 external test/result through owner APIs",
+    "db_access": "scoped reads only",
+    "cleanup": "close all harness login sessions; revoke harness grants; retain synthetic fixtures/audit"
+  },
+  "supersedes": {
+    "source_manifest_sha256": "2115aec438ac0766f5791e462f766bdba3f9d2bfd9899b59d0247fbf76a54fbf",
+    "image_id": "sha256:35591d9e210884262bb0b8e7f80d1c689e79b80363827d7a397e6ed5641c2503",
+    "reason": "strict mandatory Auth error envelope fields; Rev2 wire unchanged"
+  }
+}

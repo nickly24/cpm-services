@@ -1,0 +1,541 @@
+{
+  "runtime": "CPython 3.12.14",
+  "source_files": [
+    "cpm-back-main/cpm_back/services/exam/calculate_ratings.py",
+    "cpm-back-main/cpm_back/services/exams/rating.py"
+  ],
+  "cases": [
+    {
+      "name": "fractional-components-homework-keeps-ordinary-sum",
+      "input": {
+        "job_id": "ae095746-6c38-4b77-bc40-c6d0e62d1b2d",
+        "revision": 1,
+        "organization_id": 1,
+        "division_id": 2,
+        "account_id": 3,
+        "input_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "algorithm_version": "legacy-rating-v1",
+        "date_from": "2026-10-01",
+        "date_to": "2026-10-31",
+        "as_of": "2026-11-01T00:00:00Z",
+        "homework": [
+          {
+            "assignment_id": 1,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 2,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 3,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 4,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 5,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 6,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 7,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 8,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 9,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          },
+          {
+            "assignment_id": 10,
+            "name": "Синтетическая ДЗ",
+            "type_name": "ОВ",
+            "deadline": "2026-10-01",
+            "status": 1,
+            "result": 0.1,
+            "date_pass": null
+          }
+        ],
+        "tests": [
+          {
+            "test_id": "1",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "2",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "3",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "4",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "5",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "6",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "7",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "8",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "9",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "10",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          }
+        ],
+        "exams": [
+          {
+            "exam_id": "1",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "2",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "3",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "4",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "5",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "6",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "7",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "8",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "9",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          },
+          {
+            "exam_id": "10",
+            "exam_name": "Синтетический экзамен",
+            "exam_date": "2026-10-01",
+            "exam_type": "outside_lms",
+            "direction_id": null,
+            "attempt_no": null,
+            "has_appeal": false,
+            "missing_result": false,
+            "score": 0.1
+          }
+        ]
+      },
+      "expected": {
+        "homework": 0.09999999999999999,
+        "exams": 0.1,
+        "tests": 0.1,
+        "directions": {
+          "Математика": 0.1
+        },
+        "final_rating": 0.6700000000000002
+      }
+    },
+    {
+      "name": "fractional-equal-direction-sum",
+      "input": {
+        "job_id": "ae095746-6c38-4b77-bc40-c6d0e62d1b2d",
+        "revision": 1,
+        "organization_id": 1,
+        "division_id": 2,
+        "account_id": 3,
+        "input_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "algorithm_version": "legacy-rating-v1",
+        "date_from": "2026-10-01",
+        "date_to": "2026-10-31",
+        "as_of": "2026-11-01T00:00:00Z",
+        "homework": [],
+        "tests": [
+          {
+            "test_id": "1",
+            "title": "Синтетический тест",
+            "direction": "Направление 1",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "2",
+            "title": "Синтетический тест",
+            "direction": "Направление 2",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "3",
+            "title": "Синтетический тест",
+            "direction": "Направление 3",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "4",
+            "title": "Синтетический тест",
+            "direction": "Направление 4",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "5",
+            "title": "Синтетический тест",
+            "direction": "Направление 5",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "6",
+            "title": "Синтетический тест",
+            "direction": "Направление 6",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "7",
+            "title": "Синтетический тест",
+            "direction": "Направление 7",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "8",
+            "title": "Синтетический тест",
+            "direction": "Направление 8",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "9",
+            "title": "Синтетический тест",
+            "direction": "Направление 9",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          },
+          {
+            "test_id": "10",
+            "title": "Синтетический тест",
+            "direction": "Направление 10",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.1
+          }
+        ],
+        "exams": []
+      },
+      "expected": {
+        "homework": 0,
+        "exams": 0,
+        "tests": 0.1,
+        "directions": {
+          "Направление 1": 0.1,
+          "Направление 2": 0.1,
+          "Направление 3": 0.1,
+          "Направление 4": 0.1,
+          "Направление 5": 0.1,
+          "Направление 6": 0.1,
+          "Направление 7": 0.1,
+          "Направление 8": 0.1,
+          "Направление 9": 0.1,
+          "Направление 10": 0.1
+        },
+        "final_rating": 0.045
+      }
+    },
+    {
+      "name": "external-fractional-null-and-completed-zero",
+      "input": {
+        "job_id": "ae095746-6c38-4b77-bc40-c6d0e62d1b2d",
+        "revision": 1,
+        "organization_id": 1,
+        "division_id": 2,
+        "account_id": 3,
+        "input_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "algorithm_version": "legacy-rating-v1",
+        "date_from": "2026-10-01",
+        "date_to": "2026-10-31",
+        "as_of": "2026-11-01T00:00:00Z",
+        "homework": [],
+        "tests": [
+          {
+            "test_id": "1",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.3
+          },
+          {
+            "test_id": "2",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "missing",
+            "score": null
+          },
+          {
+            "test_id": "3",
+            "title": "Синтетический тест",
+            "direction": "Математика",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.0
+          }
+        ],
+        "exams": []
+      },
+      "expected": {
+        "homework": 0,
+        "exams": 0,
+        "tests": 0.09999999999999999,
+        "directions": {
+          "Математика": 0.09999999999999999
+        },
+        "final_rating": 0.045
+      }
+    },
+    {
+      "name": "mixed-source-casefold-and-missing-direction",
+      "input": {
+        "job_id": "ae095746-6c38-4b77-bc40-c6d0e62d1b2d",
+        "revision": 1,
+        "organization_id": 1,
+        "division_id": 2,
+        "account_id": 3,
+        "input_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "algorithm_version": "legacy-rating-v1",
+        "date_from": "2026-10-01",
+        "date_to": "2026-10-31",
+        "as_of": "2026-11-01T00:00:00Z",
+        "homework": [],
+        "tests": [
+          {
+            "test_id": "1",
+            "title": "Синтетический тест",
+            "direction": "\u001fStraße\u001c",
+            "source": "internal",
+            "calculation_status": "ready",
+            "score": 90.0
+          },
+          {
+            "test_id": "2",
+            "title": "Синтетический тест",
+            "direction": "STRASSE",
+            "source": "external",
+            "calculation_status": "ready",
+            "score": 0.0
+          },
+          {
+            "test_id": "3",
+            "title": "Синтетический тест",
+            "direction": " ",
+            "source": "external",
+            "calculation_status": "missing",
+            "score": null
+          }
+        ],
+        "exams": []
+      },
+      "expected": {
+        "homework": 0,
+        "exams": 0,
+        "tests": 22.5,
+        "directions": {
+          "Straße": 45.0,
+          "Неизвестное направление": 0.0
+        },
+        "final_rating": 10.125
+      }
+    }
+  ]
+}

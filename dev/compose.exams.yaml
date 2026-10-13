@@ -1,0 +1,35 @@
+services:
+  exams:
+    profiles: [exams]
+    build:
+      context: ../services/exams
+    image: cpm-exams:dev
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      EXAMS_LISTEN_ADDR: "0.0.0.0:8010"
+      EXAMS_AUTH_URL: http://auth:8002
+      EXAMS_CORE_URL: http://core:8003
+      AUTH_INTERNAL_KEY: ${AUTH_INTERNAL_KEY:?}
+      AUTH_OPERATIONS_EXAMS_KEY: ${AUTH_OPERATIONS_EXAMS_KEY:-}
+      EXAMS_OPERATIONS_DELIVERY_KEY: ${EXAMS_OPERATIONS_DELIVERY_KEY:-}
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:?}
+    ports: ["127.0.0.1:8010:8010"]
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, /exams, healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}

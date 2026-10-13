@@ -1,0 +1,4 @@
+.env
+bin/
+*.pem
+coverage.out

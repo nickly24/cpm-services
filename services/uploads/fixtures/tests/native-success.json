@@ -1,0 +1,63 @@
+{
+  "title": "Uploads synthetic internal test",
+  "direction": "Uploads synthetic direction",
+  "startDate": "2026-10-09T10:00",
+  "endDate": "2026-12-31T23:59",
+  "timeLimitMinutes": 30,
+  "published": false,
+  "visible": false,
+  "questions": [
+    {
+      "questionId": 1,
+      "type": "single",
+      "text": "Сколько будет 2 + 2?",
+      "points": 1,
+      "answers": [
+        {
+          "id": "a",
+          "text": "3",
+          "isCorrect": false
+        },
+        {
+          "id": "b",
+          "text": "4",
+          "isCorrect": true
+        }
+      ]
+    },
+    {
+      "questionId": 2,
+      "type": "multiple",
+      "text": "Какие числа чётные?",
+      "points": 2,
+      "answers": [
+        {
+          "id": "a",
+          "text": "2",
+          "isCorrect": true
+        },
+        {
+          "id": "b",
+          "text": "4",
+          "isCorrect": true
+        },
+        {
+          "id": "c",
+          "text": "3",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "questionId": 3,
+      "type": "text",
+      "text": "Текстовый ответ",
+      "points": 1,
+      "answers": [],
+      "correctAnswers": [
+        "синтетический",
+        "пример"
+      ]
+    }
+  ]
+}

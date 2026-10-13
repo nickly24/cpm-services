@@ -1,0 +1,12 @@
+# Optional overlay, enabled only in a coordinated Dev window.
+services:
+  auth:
+    image: ${AUTH_OPERATIONS_IMAGE:?Frozen operation-grants image required}
+    environment:
+      AUTH_OPERATIONS_ENABLED: "1"
+      AUTH_OPERATIONS_TTL_SECONDS: "21600"
+      AUTH_OPERATIONS_ISSUER_KEY: ${AUTH_OPERATIONS_ISSUER_KEY:?}
+      AUTH_OPERATIONS_CORE_KEY: ${AUTH_OPERATIONS_CORE_KEY:?}
+      AUTH_OPERATIONS_CARDS_KEY: ${AUTH_OPERATIONS_CARDS_KEY:?}
+      AUTH_OPERATIONS_TESTS_KEY: ${AUTH_OPERATIONS_TESTS_KEY:?}
+      AUTH_OPERATIONS_EXAMS_KEY: ${AUTH_OPERATIONS_EXAMS_KEY:?}

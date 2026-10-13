@@ -1,0 +1,20 @@
+Native U04 command receipt checks; isolated generated organization fixtures only.
+No service runtime restart, live API probe, Auth/Core write, or DDL change.
+
+Focused test inventory:
+TestCommandReceiptScopeAndOpenAPI
+TestCommandReceiptRejectsParametersBeforeLookup
+TestMySQLCommandReceiptPublicReplayLegacyAndDeletedObjects
+TestMySQLCommandReceiptBulkIncludesNoopAndDeletedDivision
+TestMySQLCommandReceiptProctorCurrentAndImmutableAuthorization
+TestMySQLCommandReceiptFailedWriteAndScopeRollBack
+TestMySQLCommandReceiptStudentZapOwnership
+TestMySQLCommandReceiptCorruptEvidenceFailsClosed
+TestMySQLCommandReceiptMissingDoesNotPreventLateCommit
+ok  	cpm/attendance/internal/attendance	1.119s
+
+Full check.py: Go test -race ./... (real isolated MySQL), then Go vet ./...
+?   	cpm/attendance/cmd/attendance	[no test files]
+ok  	cpm/attendance/internal/attendance	3.926s
+
+check.py exit code: 0

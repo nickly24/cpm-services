@@ -1,0 +1,50 @@
+{
+  "dev_only": true,
+  "database_seeded": false,
+  "runtime_binding_required": true,
+  "credential_placeholder": "<runtime-generated-password>",
+  "organizations": [
+    {
+      "alias": "A",
+      "divisions": [
+        "A1",
+        "A2"
+      ]
+    },
+    {
+      "alias": "B",
+      "divisions": [
+        "B1"
+      ]
+    }
+  ],
+  "direction_name": "Uploads synthetic direction",
+  "school_name": "Uploads synthetic school",
+  "names": {
+    "new_a": "Тестов УченикА",
+    "new_b": "Примеров УченикБ",
+    "ambiguous_same_division": "Дублев УченикВ",
+    "existing_result": "Готовов УченикЕ",
+    "proctor": "Синтетиков ПрокторА"
+  },
+  "owner_dependencies": [
+    "Seed equivalent surname/given name in A1, A2 and B1 to prove isolation",
+    "Seed TWO ambiguous-name student participations in A1 for ambiguity fixture",
+    "Seed existing external result for Готовов УченикЕ",
+    "Bind fixture logins to fresh dev Auth accounts and Core participations",
+    "Generate credential passwords only in memory before sending directly to Core; never save substituted file"
+  ],
+  "required_access_scenarios": [
+    "admin_A cannot access B",
+    "staff_A1 cannot access A2",
+    "upload_edit_without_subject_edit cannot commit",
+    "student cannot create administrative import",
+    "switching cabinet preserves original session/job division",
+    "revoke membership after preview and before apply",
+    "guessed foreign session/job/file/receipt/report IDs",
+    "owner expected_revision conflict",
+    "lost commit response: repeat exact command",
+    "worker restart and Rabbit redelivery: one owner commit"
+  ],
+  "scope_notes": "Files/session/jobs/events/receipts remain pinned to verified org+division+actor. Cards/themes/progress and school/direction catalogs are organization targets. Account ID is distinct from profile/student ID."
+}

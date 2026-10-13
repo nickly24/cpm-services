@@ -1,0 +1,7 @@
+# Source hook only. Include explicitly after sole-writer credential provisioning
+# and an affected-owner ACKed runtime window. No env_file with foreign keys.
+services:
+  tests:
+    environment:
+      TESTS_OPERATION_DELIVERY_KEY: ${TESTS_OPERATION_DELIVERY_KEY:?Operation delivery credential not provisioned}
+      AUTH_OPERATIONS_TESTS_KEY: ${AUTH_OPERATIONS_TESTS_KEY:?Tests own Auth credential not provisioned}

@@ -1,0 +1,28 @@
+# Credentials and machine-specific state
+.env
+.env.*
+*.env
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local dependencies and generated artifacts
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+coverage/
+*.test
+*.out
+/dev/local/
+/outputs/
+
+# External databases and persistent runtime data
+*.dump
+*.sqlite
+*.sqlite3
