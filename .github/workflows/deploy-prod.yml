@@ -33,6 +33,13 @@ jobs:
           assert r['path']=='.github/workflows/build-backend.yml'
           PY
           gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --name cpm-release --dir release
+          # Compatibility for the first artifact uploaded before hidden-file support.
+          # Restore only this non-secret template from the immutable source commit.
+          sha=$(python3 -c 'import json,re; m=json.load(open("release/release.json")); s=m["commit"]; assert re.fullmatch("[0-9a-f]{40}",s); print(s)')
+          if [[ ! -f release/prod/.env.example ]]; then
+            git fetch --depth=1 origin "$sha"
+            git show "$sha:prod/.env.example" > release/prod/.env.example
+          fi
           python3 prod/scripts/release.py release > release-id
           python3 - <<'PY'
           import json,os

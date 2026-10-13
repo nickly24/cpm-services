@@ -114,5 +114,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: cpm-release
+          include-hidden-files: true
           path: bundle/
           retention-days: 90
