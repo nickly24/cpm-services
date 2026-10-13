@@ -75,10 +75,26 @@ func LoadConfig() (Config, error) {
 	}
 	u = &url.URL{Scheme: "mongodb", Host: net.JoinHostPort(os.Getenv("MONGO_HOST"), strconv.Itoa(p)), User: url.UserPassword(os.Getenv("MONGO_USER"), os.Getenv("MONGO_PASSWORD")), Path: "/" + c.Database}
 	q := url.Values{"authSource": {c.Database}}
+	if source := os.Getenv("MONGO_AUTH_SOURCE"); source != "" {
+		q.Set("authSource", source)
+	}
+	if direct := os.Getenv("MONGO_DIRECT_CONNECTION"); direct != "" {
+		if direct != "true" && direct != "false" {
+			return c, errors.New("invalid Mongo direct connection")
+		}
+		q.Set("directConnection", direct)
+	}
 	if os.Getenv("MONGO_TLS") == "true" {
 		q.Set("tls", "true")
 	}
 	u.RawQuery = q.Encode()
 	c.MongoURI = u.String()
+	if raw := os.Getenv("MONGO_URI"); raw != "" {
+		parsed, parseErr := url.Parse(raw)
+		if parseErr != nil || (parsed.Scheme != "mongodb" && parsed.Scheme != "mongodb+srv") || parsed.Host == "" || parsed.User == nil {
+			return c, errors.New("invalid Mongo URI")
+		}
+		c.MongoURI = raw
+	}
 	return c, nil
 }

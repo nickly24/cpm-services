@@ -278,12 +278,18 @@ func (s *Server) finishPublication(r *http.Request, a Actor, draft Draft) (any, 
 	id := *draft.PublishedTestID
 	sealed := DraftDTO{draft.Title, draft.Description, draft.DirectionID, draft.Questions, draft.Layout}
 	raw, _ := json.Marshal([]any{draft.ID, draft.PublicationSourceRevision, sealed})
+	if draft.LegacyPublicationSettings != nil {
+		raw, _ = json.Marshal([]any{draft.ID, draft.PublicationSourceRevision, sealed, draft.LegacyPublicationSettings})
+	}
 	sum := sha256.Sum256(raw)
 	hash := hex.EncodeToString(sum[:])
 	doc, e := s.Store.Get(r.Context(), a.OrganizationID, id)
 	if errors.Is(e, missing) {
 		now := *draft.PublicationStartedAt
 		doc = Document{ID: id, OrganizationID: a.OrganizationID, OwnerDivisionID: draft.DivisionID, DirectionID: draft.DirectionID, Title: draft.Title, Description: draft.Description, Revision: 1, Placements: []Placement{{DivisionID: draft.DivisionID, AddedBy: draft.PublisherID, AddedAt: now, UpdatedBy: draft.PublisherID, UpdatedAt: now}}, CreatedBy: draft.PublisherID, UpdatedBy: draft.PublisherID, CreatedAt: now, UpdatedAt: now, OperationHash: hash}
+		if draft.LegacyPublicationSettings != nil {
+			doc.Placements[0].Settings = *draft.LegacyPublicationSettings
+		}
 		if e = s.initialContent(r.Context(), &doc, draft.Questions, Actor{AccountID: draft.PublisherID}); e != nil {
 			return nil, 0, e
 		}

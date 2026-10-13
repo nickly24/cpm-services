@@ -1,0 +1,7 @@
+[Unit]
+Description=CPM containers aggregate memory budget
+[Slice]
+MemoryAccounting=true
+MemoryHigh=5632M
+MemoryMax=6144M
+MemorySwapMax=512M

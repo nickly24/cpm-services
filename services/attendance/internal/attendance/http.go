@@ -301,7 +301,17 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, rt Route) {
 				return
 			}
 			i := z.Images[ids["image"]-1]
-			b, err := base64.StdEncoding.DecodeString(i.Data)
+			var b []byte
+			var err error
+			if i.AttachmentID > 0 {
+				var mime string
+				mime, b, err = s.Store.ReadAttachment(r.Context(), a.User.OrganizationID, z.ID, i.AttachmentID)
+				if err == nil && mime != i.MIME {
+					err = unavailable
+				}
+			} else {
+				b, err = base64.StdEncoding.DecodeString(i.Data)
+			}
 			if err != nil {
 				fail(w, unavailable)
 				return

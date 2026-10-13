@@ -1,0 +1,565 @@
+# Application and infrastructure peaks share a 6 GiB cpm.slice budget.
+name: cpm-prod
+services:
+  auth:
+    image: ${IMAGE_AUTH:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      AUTH_LISTEN_ADDR: 0.0.0.0:8002
+      AUTH_PRIVATE_KEY_FILE: /run/auth-keys/auth-private.pem
+      AUTH_AUDIENCE: cpm-services
+      AUTH_OPERATIONS_ENABLED: '1'
+      AUTH_OPERATIONS_TTL_SECONDS: '21600'
+      APP_ENV: production
+      GOMEMLIMIT: 384MiB
+      AUTH_ISSUER: cpm-auth-prod
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    healthcheck:
+      test:
+      - CMD
+      - /auth
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 512m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/auth.env
+      format: raw
+    volumes:
+    - /etc/cpm/prod/auth-private.pem:/run/auth-keys/auth-private.pem:ro
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8002'
+      cpm.liveness: /health/live
+  core:
+    image: ${IMAGE_CORE:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      CORE_LISTEN_ADDR: 0.0.0.0:8003
+      CORE_AUTH_URL: http://auth:8002
+      CORE_REPORTS_TESTS_URL: http://tests:8004
+      CORE_REPORTS_EXAMS_URL: http://exams:8010
+      CORE_REPORTS_ATTENDANCE_URL: http://attendance:8013
+      APP_ENV: production
+      GOMEMLIMIT: 576MiB
+    read_only: true
+    tmpfs:
+    - /tmp:size=32m,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    healthcheck:
+      test:
+      - CMD
+      - /core
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 768m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/core.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8003'
+      cpm.liveness: /health/live
+  bff:
+    image: ${IMAGE_BFF:?Frozen release digest required}
+    networks:
+    - backend
+    environment:
+      BFF_DOCKER: '1'
+      BFF_REDIS_ADDR: redis:6379
+      APP_ENV: production
+      GOMEMLIMIT: 384MiB
+      BFF_LISTEN_ADDR: 0.0.0.0:8001
+      BFF_AUTH_URL: http://auth:8002
+      BFF_CORE_URL: http://core:8003
+      BFF_HOMEWORK_URL: http://homework:8006
+      BFF_TESTS_URL: http://tests:8004
+      BFF_EXAMS_URL: http://exams:8010
+      BFF_RATINGS_URL: http://ratings:8012
+      BFF_ATTENDANCE_URL: http://attendance:8013
+      BFF_CARDS_URL: http://cards:8008
+      BFF_UPLOADS_URL: http://uploads:8014
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    mem_limit: 512m
+    healthcheck:
+      test:
+      - CMD
+      - /bff
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    cgroup_parent: cpm.slice
+    restart: unless-stopped
+    memswap_limit: 512m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/bff.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8001'
+      cpm.liveness: /health/live
+  tests:
+    image: ${IMAGE_TESTS:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      MONGO_PORT: '27017'
+      TESTS_LISTEN_ADDR: 0.0.0.0:8004
+      TESTS_AUTH_URL: http://auth:8002
+      TESTS_CORE_URL: http://core:8003
+      TESTS_CALCULATE_URL: http://calculate:8005
+      APP_ENV: production
+      GOMEMLIMIT: 768MiB
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    healthcheck:
+      test:
+      - CMD
+      - /tests
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 1g
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/tests.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8004'
+      cpm.liveness: /health/live
+  calculate:
+    image: ${IMAGE_CALCULATE:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      MONGO_PORT: '27017'
+      CALCULATE_LISTEN_ADDR: 0.0.0.0:8005
+      CALCULATE_TESTS_URL: http://tests:8004
+      CALCULATE_RATINGS_URL: http://ratings:8012
+      APP_ENV: production
+      GOMEMLIMIT: 768MiB
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    healthcheck:
+      test:
+      - CMD
+      - /calculate
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 1g
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/calculate.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8005'
+      cpm.liveness: /health/live
+  cards:
+    image: ${IMAGE_CARDS:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      CARDS_LISTEN_ADDR: 0.0.0.0:8008
+      CARDS_AUTH_URL: http://auth:8002
+      CARDS_CORE_URL: http://core:8003
+      CARDS_TESTS_URL: http://tests:8004
+      APP_ENV: production
+      GOMEMLIMIT: 384MiB
+    read_only: true
+    tmpfs:
+    - /tmp:size=64m,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    healthcheck:
+      test:
+      - CMD
+      - /cards
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 512m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/cards.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8008'
+      cpm.liveness: /health/live
+  exams:
+    image: ${IMAGE_EXAMS:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      EXAMS_LISTEN_ADDR: 0.0.0.0:8010
+      EXAMS_AUTH_URL: http://auth:8002
+      EXAMS_CORE_URL: http://core:8003
+      APP_ENV: production
+      GOMEMLIMIT: 576MiB
+    read_only: true
+    tmpfs:
+    - /tmp:size=64m,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 768m
+    healthcheck:
+      test:
+      - CMD
+      - /exams
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 768m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/exams.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8010'
+      cpm.liveness: /health/live
+  homework:
+    image: ${IMAGE_HOMEWORK:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      HOMEWORK_LISTEN_ADDR: 0.0.0.0:8006
+      HOMEWORK_AUTH_URL: http://auth:8002
+      HOMEWORK_CORE_URL: http://core:8003
+      APP_ENV: production
+      GOMEMLIMIT: 576MiB
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    healthcheck:
+      test:
+      - CMD
+      - /homework
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 768m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/homework.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8006'
+      cpm.liveness: /health/live
+  file-work-service:
+    image: ${IMAGE_FILE_WORK_SERVICE:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      LISTEN_ADDR: 0.0.0.0:8007
+      HOMEWORK_URL: http://homework:8006
+      PDF_TEMP_DIR: /tmp
+      PDF_PROCESS_TIMEOUT_SECONDS: '120'
+      APP_ENV: production
+      GOMEMLIMIT: 256MiB
+    read_only: true
+    tmpfs:
+    - /tmp:size=512m,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 64
+    healthcheck:
+      test:
+      - CMD
+      - /file-work-service
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 1536m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 1536m
+    stop_grace_period: 150s
+    env_file:
+    - path: /etc/cpm/prod/file-work-service.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8007'
+      cpm.liveness: /healthz
+  ratings:
+    image: ${IMAGE_RATINGS:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      RATINGS_LISTEN_ADDR: 0.0.0.0:8012
+      RATINGS_AUTH_URL: http://auth:8002
+      RATINGS_CORE_URL: http://core:8003
+      RATINGS_HOMEWORK_URL: http://homework:8006
+      RATINGS_TESTS_URL: http://tests:8004
+      RATINGS_CALCULATE_URL: http://calculate:8005
+      APP_ENV: production
+      GOMEMLIMIT: 576MiB
+      RATINGS_EXAMS_MODE: required
+      RATINGS_EXTERNAL_TESTS_MODE: required
+      RATINGS_EXAMS_URL: http://exams:8010
+    read_only: true
+    tmpfs:
+    - /tmp:size=32m,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    healthcheck:
+      test:
+      - CMD
+      - /ratings
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    mem_limit: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 768m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/ratings.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8012'
+      cpm.liveness: /health/live
+  attendance:
+    image: ${IMAGE_ATTENDANCE:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      ATTENDANCE_LISTEN_ADDR: 0.0.0.0:8013
+      ATTENDANCE_AUTH_URL: http://auth:8002
+      ATTENDANCE_CORE_URL: http://core:8003
+      APP_ENV: production
+      GOMEMLIMIT: 384MiB
+    networks:
+    - backend
+    read_only: true
+    tmpfs:
+    - /tmp:size=32m,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    healthcheck:
+      test:
+      - CMD
+      - /attendance
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    cgroup_parent: cpm.slice
+    memswap_limit: 512m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/attendance.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8013'
+      cpm.liveness: /health/live
+  uploads:
+    image: ${IMAGE_UPLOADS:?Frozen release digest required}
+    restart: unless-stopped
+    environment:
+      UPLOADS_LISTEN_ADDR: 0.0.0.0:8014
+      UPLOADS_AUTH_URL: http://auth:8002
+      UPLOADS_CORE_URL: http://core:8003
+      UPLOADS_CARDS_URL: http://cards:8008
+      UPLOADS_EXAMS_URL: http://exams:8010
+      UPLOADS_HOMEWORK_URL: http://homework:8006
+      UPLOADS_ATTENDANCE_URL: http://attendance:8013
+      UPLOADS_TESTS_URL: http://tests:8004
+      APP_ENV: production
+      GOMEMLIMIT: 384MiB
+      UPLOADS_OPERATIONS_ENABLED: '1'
+      RABBITMQ_VHOST: cpm_prod
+    read_only: true
+    tmpfs:
+    - /tmp:size=64m,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 96
+    mem_limit: 512m
+    healthcheck:
+      test:
+      - CMD
+      - /uploads
+      - healthcheck
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+    - backend
+    cgroup_parent: cpm.slice
+    memswap_limit: 512m
+    stop_grace_period: 60s
+    env_file:
+    - path: /etc/cpm/prod/uploads.env
+      format: raw
+    labels:
+      cpm.managed: 'true'
+      cpm.watchdog: 'true'
+      cpm.port: '8014'
+      cpm.liveness: /health/live
+networks:
+  backend:
+    external: true
+    name: cpm-prod-backend

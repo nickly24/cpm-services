@@ -1,0 +1,118 @@
+name: Build backend
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Source branch
+        type: choice
+        options: [dev, UAT, prod]
+        required: true
+        default: prod
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: build-${{ inputs.branch }}
+  cancel-in-progress: false
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.freeze.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - id: freeze
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  build:
+    needs: source
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        service: [auth, core, bff, tests, calculate, cards, exams, homework, file-work-service, ratings, attendance, uploads]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.1
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+      - name: Unit and contract tests
+        working-directory: services/${{ matrix.service }}
+        run: go test -race -p=2 ./...
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: PDF tool integration tests
+        if: matrix.service == 'file-work-service'
+        run: |
+          docker build --target test -t cpm-pdf-tests services/file-work-service
+          docker run --rm cpm-pdf-tests
+      - id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/nickly24/cpm-services/${{ matrix.service }}:${{ needs.source.outputs.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Save exact image digest
+        env:
+          SERVICE: ${{ matrix.service }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          mkdir -p digests
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          s=os.environ['SERVICE'];Path('digests/'+s+'.json').write_text(json.dumps({s:'ghcr.io/nickly24/cpm-services/'+s+'@'+os.environ['DIGEST']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.service }}
+          path: digests/*.json
+  release:
+    needs: [source, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+      - name: Check production artifacts
+        run: python3 -m unittest discover -s prod/tests -v
+      - name: Build release manifest
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          SOURCE_BRANCH: ${{ inputs.branch }}
+          BUILD_RUN: ${{ github.run_id }}
+        run: |
+          find prod -type d -name __pycache__ -prune -exec rm -rf {} +
+          mkdir bundle
+          cp -r prod bundle/prod
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          images={}
+          for p in Path('digests').glob('*.json'): images.update(json.loads(p.read_text()))
+          sha=os.environ['SOURCE_SHA'];branch=os.environ['SOURCE_BRANCH']
+          m={'schema':1,'id':branch+'-'+os.environ['BUILD_RUN']+'-'+sha[:12],'branch':branch,'commit':sha,'build_run_id':int(os.environ['BUILD_RUN']),'images':images,'files':{str(p.relative_to('bundle')):hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('bundle/prod').rglob('*') if p.is_file()}}
+          Path('bundle/release.json').write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpm-release
+          path: bundle/
+          retention-days: 90

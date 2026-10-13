@@ -1,0 +1,79 @@
+name: cpm-infra
+x-common: &common
+  restart: unless-stopped
+  cgroup_parent: cpm.slice
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+  networks: [backend]
+services:
+  rabbitmq:
+    <<: *common
+    image: ${RABBITMQ_IMAGE:?Pinned infrastructure image required}
+    hostname: cpm-prod-rabbitmq
+    env_file:
+      - path: /etc/cpm/prod/rabbitmq.env
+        format: raw
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports: ["127.0.0.1:15672:15672"]
+    mem_limit: 768m
+    healthcheck:
+      test: [CMD-SHELL, "gosu rabbitmq rabbitmq-diagnostics -q check_running && gosu rabbitmq rabbitmq-diagnostics -q check_local_alarms"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+  redis:
+    <<: *common
+    image: ${REDIS_IMAGE:?Pinned infrastructure image required}
+    command: [sh, -c, 'exec redis-server --appendonly yes --appendfsync everysec --maxmemory 192mb --maxmemory-policy noeviction --requirepass "$$BFF_REDIS_PASSWORD"']
+    env_file:
+      - path: /etc/cpm/prod/redis.env
+        format: raw
+    volumes: [redis-data:/data]
+    mem_limit: 320m
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$BFF_REDIS_PASSWORD" redis-cli ping']
+      interval: 15s
+      timeout: 4s
+      retries: 8
+  portainer:
+    <<: *common
+    image: ${PORTAINER_IMAGE:?Pinned infrastructure image required}
+    command: [--admin-password-file, /run/portainer-password]
+    ports: ["127.0.0.1:9443:9443"]
+    volumes:
+      - portainer-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/cpm/prod/portainer-password:/run/portainer-password:ro
+    mem_limit: 256m
+  prometheus:
+    <<: *common
+    image: ${PROMETHEUS_IMAGE:?Pinned infrastructure image required}
+    command: [--config.file=/etc/prometheus/prometheus.yaml, --storage.tsdb.retention.time=7d, --storage.tsdb.retention.size=512MB]
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./rules.yaml:/etc/prometheus/rules.yaml:ro
+    mem_limit: 256m
+  nginx:
+    <<: *common
+    image: ${NGINX_IMAGE:?Pinned infrastructure image required}
+    profiles: [ingress]
+    ports: ["80:80"]
+    volumes: ["./nginx.conf:/etc/nginx/nginx.conf:ro"]
+    read_only: true
+    tmpfs: [/tmp:size=64m,mode=1777, /var/cache/nginx:size=16m,mode=1777, /var/run:size=8m,mode=1777]
+    mem_limit: 96m
+networks:
+  backend:
+    external: true
+    name: cpm-prod-backend
+volumes:
+  rabbitmq-data:
+  redis-data:
+  portainer-data:
+  prometheus-data:

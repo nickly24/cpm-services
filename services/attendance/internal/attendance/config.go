@@ -24,7 +24,7 @@ func LoadConfig() (Config, error) {
 	if len(c.Key) < 32 || len(c.QRKey) < 32 || c.Key == string(c.QRKey) {
 		return c, errors.New("distinct service and QR keys required")
 	}
-	if os.Getenv("MYSQL_DATABASE") != "cpm_dev" {
+	if os.Getenv("APP_ENV") != "production" && os.Getenv("MYSQL_DATABASE") != "cpm_dev" {
 		return c, errors.New("only cpm_dev is enabled before migration")
 	}
 	for _, raw := range []string{c.AuthURL, c.CoreURL} {
@@ -38,7 +38,7 @@ func LoadConfig() (Config, error) {
 		return c, errors.New("invalid mysql port")
 	}
 	host := os.Getenv("MYSQL_HOST")
-	if host != "mysql" && host != "127.0.0.1" && host != "localhost" {
+	if os.Getenv("APP_ENV") != "production" && host != "mysql" && host != "127.0.0.1" && host != "localhost" {
 		return c, errors.New("only dev mysql host is allowed")
 	}
 	cfg := mysql.NewConfig()
@@ -49,7 +49,12 @@ func LoadConfig() (Config, error) {
 	}
 	cfg.Net = "tcp"
 	cfg.Addr = net.JoinHostPort(host, strconv.Itoa(port))
-	cfg.DBName = "cpm_dev"
+	cfg.DBName = os.Getenv("MYSQL_DATABASE")
+	if host == "" || cfg.DBName == "" {
+		return c, errors.New("mysql host and database required")
+	}
+	cfg.TLSConfig = os.Getenv("MYSQL_TLS")
+	cfg.Loc = time.UTC
 	cfg.ParseTime = true
 	cfg.Timeout = 3 * time.Second
 	cfg.ReadTimeout = 20 * time.Second

@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+rule_files:
+  - /etc/prometheus/rules.yaml
+scrape_configs:
+  - job_name: cpm
+    static_configs:
+      - targets: [auth:8002, core:8003, bff:8001, tests:8004, calculate:8005, cards:8008, exams:8010, homework:8006, file-work-service:8007, ratings:8012, attendance:8013, uploads:8014]

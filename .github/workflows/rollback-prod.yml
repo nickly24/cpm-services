@@ -1,0 +1,32 @@
+name: Rollback prod
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Saved prod release ID from /opt/cpm/releases
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: cpm-production
+  cancel-in-progress: false
+jobs:
+  rollback:
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - name: Restore saved images without touching databases or volumes
+        env:
+          RELEASE: ${{ inputs.release }}
+          SSH_KEY: ${{ secrets.CPM_DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.CPM_SSH_KNOWN_HOSTS }}
+        run: |
+          [[ "$RELEASE" =~ ^prod-[0-9]+-[0-9a-f]{12}$ ]] || exit 2
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes cpm-deploy@185.239.51.138 "sudo /usr/local/sbin/cpm-release rollback $RELEASE"
+      - if: always()
+        run: rm -f ~/.ssh/id_ed25519

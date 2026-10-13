@@ -1,0 +1,66 @@
+groups:
+  - name: cpm-test-delivery
+    rules:
+      - record: cpm:metrics_collector_fresh
+        expr: cpm_metrics_collector_success == 1 and on (job, instance) (time() - cpm_metrics_collector_last_success_timestamp_seconds < 60)
+      - record: cpm:http_request_rate5m
+        expr: sum by (job, route, method) (rate(cpm_http_requests_total{route!~".*health.*"}[5m]))
+      - record: cpm:http_error_ratio5m
+        expr: sum by (job) (rate(cpm_http_requests_total{status=~"5..",route!~".*health.*"}[5m])) / clamp_min(sum by (job) (rate(cpm_http_requests_total{route!~".*health.*"}[5m])), 0.001)
+      - record: cpm:http_duration_p95_seconds5m
+        expr: histogram_quantile(0.95, sum by (job, route, method, le) (rate(cpm_http_request_duration_seconds_bucket{route!~".*health.*"}[5m])))
+      - record: cpm:initial_result_latency_p95_seconds5m
+        expr: histogram_quantile(0.95, sum by (le) (rate(cpm_tests_calculation_result_latency_seconds_bucket{kind="initial_grade"}[5m])))
+      - record: cpm:calculate_pending_jobs
+        expr: sum by (kind) (max by (kind, status) (cpm_calculate_inbox_messages{status=~"received|retrying|processing"} and on (job, instance) cpm:metrics_collector_fresh))
+      - record: cpm:calculate_oldest_active_job_seconds
+        expr: max by (kind) (cpm_calculate_oldest_active_job_age_seconds and on (job, instance) cpm:metrics_collector_fresh)
+      - alert: CPMServiceUnavailable
+        expr: up{job=~"bff|tests|calculate"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "CPM service cannot be scraped"
+          description: "The {{ $labels.job }} endpoint has failed for one minute."
+      - alert: CPMMetricsCollectorFailed
+        expr: cpm_metrics_collector_success{job=~"bff|tests|calculate"} == 0 or (time() - cpm_metrics_collector_last_success_timestamp_seconds{job=~"bff|tests|calculate"} > 60)
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: "CPM backlog/session collector failed or became stale"
+          description: "Do not interpret a successful HTTP scrape as a successful backend collection."
+      - alert: CPMBFFSessionStoreUnavailable
+        expr: cpm_bff_session_store_up == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "BFF session store is unavailable"}
+      - alert: CPMCalculateConsumerDisconnected
+        expr: cpm_calculate_consumer_connected == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: "Calculate is not receiving new RabbitMQ jobs"}
+      - alert: CPMInitialGradingDelayed
+        expr: cpm:calculate_oldest_active_job_seconds{kind="initial_grade"} > 120
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "An initial grading job has waited more than two minutes"}
+      - alert: CPMBackgroundGradingDelayed
+        expr: cpm:calculate_oldest_active_job_seconds{kind=~"regrade|content"} > 900
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Background recalculation is delayed"}
+      - alert: CPMAcceptedSubmissionStuck
+        expr: cpm_tests_oldest_initial_submission_age_seconds > 180 and on(job, instance) cpm:metrics_collector_fresh
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "An accepted first submission has not received its result"}
+      - alert: CPMCalculationFailed
+        expr: sum(max by (kind, status) (cpm_calculate_inbox_messages{status="failed"} and on(job, instance) cpm:metrics_collector_fresh)) > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Durable inbox contains terminal failures requiring investigation"}
+      - alert: CPMHTTPErrorRateHigh
+        expr: cpm:http_error_ratio5m > 0.05
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "More than five percent of CPM HTTP requests return 5xx"}

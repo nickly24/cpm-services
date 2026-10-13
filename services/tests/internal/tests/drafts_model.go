@@ -51,6 +51,8 @@ type Draft struct {
 	CreatedAt                 time.Time       `json:"created_at" bson:"created_at"`
 	UpdatedAt                 time.Time       `json:"updated_at" bson:"updated_at"`
 	OperationHash             string          `json:"-" bson:"operation_hash"`
+	// Only restored legacy drafts carry their pre-migration publication settings.
+	LegacyPublicationSettings *Settings `json:"legacy_publication_settings,omitempty" bson:"legacy_publication_settings,omitempty"`
 }
 type DraftListView struct {
 	Items  []Draft `json:"items"`

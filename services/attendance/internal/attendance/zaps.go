@@ -23,6 +23,11 @@ type ZapDecision struct {
 }
 
 func checkImage(i Image) error {
+	// Stored legacy references are assigned only by the migration, never by a
+	// client creating a new statement.
+	if i.AttachmentID != 0 {
+		return bad("invalid_image")
+	}
 	b, e := base64.StdEncoding.DecodeString(i.Data)
 	if e != nil || len(b) == 0 || len(b) > 512<<10 {
 		return bad("invalid_image")

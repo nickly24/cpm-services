@@ -45,6 +45,7 @@ func LoadConfig() (Config, error) {
 	m.Net = "tcp"
 	m.Addr = net.JoinHostPort(os.Getenv("MYSQL_HOST"), os.Getenv("MYSQL_PORT"))
 	m.DBName = os.Getenv("MYSQL_DATABASE")
+	m.TLSConfig = os.Getenv("MYSQL_TLS")
 	m.ParseTime = true
 	m.Timeout = 5 * time.Second
 	m.ReadTimeout = 20 * time.Second

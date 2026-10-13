@@ -31,7 +31,7 @@ func origin(raw, service string, port int) (string, error) {
 }
 func LoadConfig() (Config, error) {
 	c := Config{Listen: os.Getenv("UPLOADS_LISTEN_ADDR")}
-	if os.Getenv("UPLOADS_DEV_MODE") != "true" || os.Getenv("MYSQL_DATABASE") != "cpm_dev" || (os.Getenv("MYSQL_HOST") != "127.0.0.1" && os.Getenv("MYSQL_HOST") != "mysql") {
+	if os.Getenv("APP_ENV") != "production" && (os.Getenv("UPLOADS_DEV_MODE") != "true" || os.Getenv("MYSQL_DATABASE") != "cpm_dev" || (os.Getenv("MYSQL_HOST") != "127.0.0.1" && os.Getenv("MYSQL_HOST") != "mysql")) {
 		return c, errors.New("uploads currently supports only isolated cpm_dev")
 	}
 	if c.Listen == "" {
@@ -56,13 +56,18 @@ func LoadConfig() (Config, error) {
 		}
 	}
 	dbport := os.Getenv("MYSQL_PORT")
-	if (os.Getenv("MYSQL_HOST") == "127.0.0.1" && dbport != "13306") || (os.Getenv("MYSQL_HOST") == "mysql" && dbport != "3306") {
+	n, parseErr := strconv.Atoi(dbport)
+	if parseErr != nil || n < 1 || n > 65535 || os.Getenv("MYSQL_HOST") == "" || os.Getenv("MYSQL_DATABASE") == "" {
+		return c, errors.New("invalid mysql configuration")
+	}
+	if os.Getenv("APP_ENV") != "production" && ((os.Getenv("MYSQL_HOST") == "127.0.0.1" && dbport != "13306") || (os.Getenv("MYSQL_HOST") == "mysql" && dbport != "3306")) {
 		return c, errors.New("invalid dev database port")
 	}
 	mc := mysql.NewConfig()
 	mc.User = os.Getenv("MYSQL_USER")
 	mc.Passwd = os.Getenv("MYSQL_PASSWORD")
-	mc.DBName = "cpm_dev"
+	mc.DBName = os.Getenv("MYSQL_DATABASE")
+	mc.TLSConfig = os.Getenv("MYSQL_TLS")
 	mc.Net = "tcp"
 	mc.Addr = net.JoinHostPort(os.Getenv("MYSQL_HOST"), dbport)
 	mc.ParseTime = true
@@ -121,7 +126,14 @@ func loadOperationConfig(c *Config) error {
 
 func validateRabbitURL(raw string) error {
 	u, e := url.Parse(raw)
-	if e != nil || u.Scheme != "amqp" || u.User == nil || u.Port() != "5672" || u.Path != "/cpm_dev" || u.RawQuery != "" || u.Fragment != "" {
+	vhost := "/cpm_dev"
+	if os.Getenv("APP_ENV") == "production" {
+		if os.Getenv("RABBITMQ_VHOST") == "" {
+			return errors.New("RabbitMQ vhost required")
+		}
+		vhost = "/" + os.Getenv("RABBITMQ_VHOST")
+	}
+	if e != nil || (u.Scheme != "amqp" && u.Scheme != "amqps") || u.User == nil || u.Port() != "5672" || u.Path != vhost || u.RawQuery != "" || u.Fragment != "" {
 		return errors.New("invalid uploads dev broker configuration")
 	}
 	switch u.Hostname() {

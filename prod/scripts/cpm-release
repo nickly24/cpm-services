@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""Restricted entry point for the deployment account's sudo rule."""
+import os,re,subprocess,sys,tarfile,tempfile,shutil,json
+from pathlib import Path
+if len(sys.argv)!=3 or sys.argv[1] not in ['deploy','rollback'] or not re.fullmatch('prod-[0-9]+-[0-9a-f]{12}',sys.argv[2]):raise SystemExit('invalid command')
+mode,ident=sys.argv[1:];target=Path('/opt/cpm/releases')/ident
+if mode=='deploy':
+ archive=Path('/opt/cpm/incoming')/(ident+'.tgz')
+ staging=Path(tempfile.mkdtemp(prefix='.verify-',dir='/opt/cpm/releases'))
+ try:
+  with tarfile.open(archive) as tf:
+   if sum(m.size for m in tf.getmembers())>16*1024*1024:raise ValueError('oversized release')
+   for m in tf.getmembers():
+    name=Path(m.name)
+    if name.is_absolute() or '..' in name.parts or not(m.isfile() or m.isdir()):raise ValueError('unsafe archive')
+   tf.extractall(staging,filter='data')
+  subprocess.run(['python3','/opt/cpm/infra/scripts/release.py',str(staging)],check=True,stdout=subprocess.DEVNULL)
+  manifest=json.loads((staging/'release.json').read_text())
+  if manifest['id']!=ident:raise ValueError('release ID mismatch')
+  if target.exists():
+   # Exact failed/partially downloaded releases can be retried without changing artifacts.
+   if json.loads((target/'release.json').read_text())!=manifest:raise ValueError('immutable release collision')
+   subprocess.run(['python3','/opt/cpm/infra/scripts/release.py',str(target)],check=True,stdout=subprocess.DEVNULL)
+  else:staging.rename(target)
+ except Exception:raise SystemExit('invalid release archive')
+ finally:
+  if staging.exists():shutil.rmtree(staging)
+os.execv('/bin/bash',['bash','/opt/cpm/infra/scripts/deploy.sh',mode,ident])

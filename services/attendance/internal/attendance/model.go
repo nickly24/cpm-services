@@ -172,8 +172,9 @@ type Mark struct {
 	TypeID    int64 `json:"attendance_type_id"`
 }
 type Image struct {
-	MIME string `json:"mime"`
-	Data string `json:"data"`
+	MIME         string `json:"mime"`
+	Data         string `json:"data,omitempty"`
+	AttachmentID int64  `json:"attachment_id,omitempty"`
 }
 type ZapDate struct {
 	Date   string `json:"date"`

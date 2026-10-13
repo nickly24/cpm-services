@@ -363,6 +363,12 @@ func (s *Server) result(w http.ResponseWriter, r *http.Request) {
 		fail(w, conflict("stale_rating_input"))
 		return
 	}
+	// Only the offline migration may retain ambiguous old detail entries. Live
+	// Calculate results must continue to have one outcome per exam.
+	if historicalExamEntries(in.Exams) {
+		fail(w, bad("historical_entry_read_only"))
+		return
+	}
 	if e = validateResult(in); e != nil {
 		fail(w, e)
 		return
@@ -459,6 +465,21 @@ func validResultNullableID(raw json.RawMessage) bool {
 	return len(raw) > 0 && json.Unmarshal(raw, &value) == nil && (value == nil || *value > 0)
 }
 
+func historicalExamEntries(raw json.RawMessage) bool {
+	var component struct {
+		Details []map[string]json.RawMessage `json:"details"`
+	}
+	if json.Unmarshal(raw, &component) != nil {
+		return false
+	}
+	for _, detail := range component.Details {
+		if _, exists := detail["legacy_entry_id"]; exists {
+			return true
+		}
+	}
+	return false
+}
+
 // Validate the Calculate wire contract without regrading or changing persisted
 // output bytes. Only calculation_status may be absent in historical test details.
 func validResultDetail(kind string, raw json.RawMessage) (string, bool) {
@@ -511,6 +532,7 @@ func validResultDetail(kind string, raw json.RawMessage) (string, bool) {
 			AttemptNo     json.RawMessage `json:"attempt_no"`
 			HasAppeal     *bool           `json:"has_appeal"`
 			MissingResult *bool           `json:"missing_result"`
+			LegacyEntryID *string         `json:"legacy_entry_id,omitempty"`
 		}
 		if strict(raw, &detail) != nil || detail.ID == nil || *detail.ID == "" || detail.Name == nil || !validResultDate(detail.Date) || !validResultNumber(detail.Score) || detail.Status == nil || detail.Type == nil || !validResultNullableID(detail.DirectionID) || !validResultNullableID(detail.AttemptNo) || detail.HasAppeal == nil || detail.MissingResult == nil {
 			return "", false
@@ -521,6 +543,12 @@ func validResultDetail(kind string, raw json.RawMessage) (string, bool) {
 			}
 		} else if *detail.Status != "Сдан" {
 			return "", false
+		}
+		if detail.LegacyEntryID != nil {
+			if !regexp.MustCompile(`^legacy:[0-9a-f]{24}:[1-9][0-9]{0,5}$`).MatchString(*detail.LegacyEntryID) {
+				return "", false
+			}
+			return *detail.ID + ":" + *detail.LegacyEntryID, true
 		}
 		return *detail.ID, true
 	}

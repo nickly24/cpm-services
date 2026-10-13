@@ -21,6 +21,7 @@ import (
 
 type Config struct {
 	Auth, Core, Homework, Tests, Exams, Ratings, Attendance, Cards, Uploads, Origin string
+	AllowedOrigins                                                                  []string
 	Secure                                                                          bool
 	RedisAddress, RedisPassword                                                     string
 	GatewayKey                                                                      string
@@ -216,12 +217,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		failure(w, 404, "not_found")
 		return
 	}
+	if s.cors(w, r) {
+		return
+	}
 	if r.Header.Get("X-CPM-Request") != "1" {
 		failure(w, 403, "request_header_required")
 		return
 	}
 	origin := r.Header.Get("Origin")
-	if (origin != "" && origin != s.config.Origin) || (r.Method != "GET" && origin != s.config.Origin) {
+	if (origin != "" && !s.allowedOrigin(origin)) || (r.Method != "GET" && !s.allowedOrigin(origin)) {
 		failure(w, 403, "origin_forbidden")
 		return
 	}

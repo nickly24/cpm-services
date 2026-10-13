@@ -16,6 +16,23 @@ type Result struct {
 	Value    any   `json:"value"`
 }
 
+// Legacy documents may reference larger PDF/HEIC/JPEG attachments. Keep those
+// immutable bytes outside the mutable journal aggregate and every audit copy.
+// Caller must first authorize the statement; this lookup also pins its tenant
+// and statement so a reference cannot address another student's attachment.
+func (s Store) ReadAttachment(ctx context.Context, organization, zap, id int64) (string, []byte, error) {
+	var mime, expected string
+	var data []byte
+	err := s.DB.QueryRowContext(ctx, "SELECT mime,content,sha256 FROM attendance_attachments_v1 WHERE organization_id=? AND zap_id=? AND id=?", organization, zap, id).Scan(&mime, &data, &expected)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil, missing
+	}
+	if err != nil || len(data) == 0 || hash(data) != expected {
+		return "", nil, unavailable
+	}
+	return mime, data, nil
+}
+
 func hash(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func (s Store) Read(ctx context.Context, o int64) (*State, int64, error) {
 	var b []byte

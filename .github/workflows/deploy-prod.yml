@@ -1,0 +1,59 @@
+name: Deploy prod
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Successful Build backend run ID, source branch prod
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  packages: read
+concurrency:
+  group: cpm-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify build provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN: ${{ inputs.build_run }}
+        run: |
+          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]] || exit 2
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" > run.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('run.json'))
+          assert r['conclusion']=='success' and r['name']=='Build backend' and r['event']=='workflow_dispatch'
+          assert r['path']=='.github/workflows/build-backend.yml'
+          PY
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --name cpm-release --dir release
+          python3 prod/scripts/release.py release > release-id
+          python3 - <<'PY'
+          import json,os
+          m=json.load(open('release/release.json'));assert str(m['build_run_id'])==os.environ['BUILD_RUN']
+          PY
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.CPM_DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.CPM_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: Download first and deploy with automatic image rollback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(cat release-id)
+          tar -C release -czf release.tgz .
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes release.tgz cpm-deploy@185.239.51.138:/opt/cpm/incoming/$id.tgz
+          printf '%s\n' "$GH_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes cpm-deploy@185.239.51.138 "sudo /usr/local/sbin/cpm-release deploy $id"
+      - if: always()
+        run: rm -f ~/.ssh/id_ed25519

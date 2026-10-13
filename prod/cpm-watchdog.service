@@ -1,0 +1,6 @@
+[Unit]
+Description=CPM bounded liveness watchdog
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/cpm/infra/scripts/watchdog.py
