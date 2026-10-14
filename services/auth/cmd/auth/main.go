@@ -41,7 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(10)
+	db.SetMaxOpenConns(20)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	service := &auth.Server{Repo: &auth.Repository{DB: db}, Tokens: tokens, Config: config}
