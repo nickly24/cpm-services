@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Installed in /etc/letsencrypt/renewal-hooks/deploy/ after initial issuance.
+# Nginx retains the last valid configuration if validation fails.
+docker exec cpm-infra-nginx-1 nginx -t
+docker exec cpm-infra-nginx-1 nginx -s reload

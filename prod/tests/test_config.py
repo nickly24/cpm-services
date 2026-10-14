@@ -28,4 +28,38 @@ class ProductionConfigTest(unittest.TestCase):
   deploy=(PROD/'scripts/deploy.sh').read_text()
   self.assertIn('resources=(-f /etc/cpm/prod/resources.compose.yaml)',deploy)
   self.assertEqual(deploy.count('"${resources[@]}"'),2)
+
+class HTTPSPolicyTest(unittest.TestCase):
+ def test_tls_policy_survives_older_release_rollback(self):
+  import subprocess,tempfile
+  script=(PROD/'scripts/deploy.sh').read_text()
+  self.assertEqual(script.count('install_ingress_config "'),2)
+  start=script.index('install_ingress_config() {')
+  stop=script.index('\nactivate_ingress()',start)
+  helper=script[start:stop]
+  with tempfile.TemporaryDirectory() as directory:
+   root=Path(directory);(root/'release/prod').mkdir(parents=True)
+   (root/'release/prod/nginx.conf').write_text('old HTTP release')
+   helper=helper.replace('/etc/cpm/prod/nginx.conf',str(root/'host.conf')).replace('/opt/cpm/infra/nginx.conf',str(root/'active.conf'))
+   def activate():subprocess.run(['bash','-euc',helper+'\ninstall_ingress_config "$1"','test',str(root/'release')],check=True)
+   activate();self.assertEqual((root/'active.conf').read_text(),'old HTTP release')
+   (root/'host.conf').write_text('durable HTTPS policy')
+   activate();self.assertEqual((root/'active.conf').read_text(),'durable HTTPS policy')
+ def test_certificates_webroot_and_renewal_share_paths(self):
+  import yaml
+  nginx=yaml.safe_load((PROD/'infra.compose.yaml').read_text())['services']['nginx']
+  self.assertIn('443:443',nginx['ports'])
+  for volume in ['/etc/letsencrypt:/etc/letsencrypt:ro','/var/lib/letsencrypt:/var/www/acme:ro']:self.assertIn(volume,nginx['volumes'])
+  config=(PROD/'nginx.tls.conf').read_text()
+  self.assertIn('root /var/www/acme;',config)
+  self.assertIn('/etc/letsencrypt/live/back1.cpm-lms.ru/fullchain.pem',config)
+  self.assertIn('return 308 https://back1.cpm-lms.ru$request_uri;',config)
+  self.assertIn('listen 80 default_server;',config)
+  self.assertIn('ssl_protocols TLSv1.2 TLSv1.3;',config)
+  hook=(PROD/'scripts/certbot-nginx-reload').read_text()
+  self.assertLess(hook.index('nginx -t'),hook.index('nginx -s reload'))
+  env=(PROD/'.env.example').read_text()
+  self.assertIn('BFF_COOKIE_SECURE=true',env)
+  self.assertIn('https://back1.cpm-lms.ru',env)
+
 if __name__=='__main__':unittest.main()

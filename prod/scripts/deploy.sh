@@ -32,9 +32,17 @@ fi
 systemctl stop cpm-watchdog.timer || true
 finish() { systemctl start cpm-watchdog.timer || true; }
 trap 'finish; if [[ -n ${DOCKER_CONFIG:-} ]]; then rm -rf "$DOCKER_CONFIG"; fi' EXIT
+install_ingress_config() {
+  # Host TLS policy/certificates outlive application releases, including old rollbacks.
+  local source=$1/prod/nginx.conf
+  if [[ -f /etc/cpm/prod/nginx.conf ]]; then source=/etc/cpm/prod/nginx.conf; fi
+  cp "$source" /opt/cpm/infra/nginx.conf
+}
 activate_ingress() {
-  cp "$release/prod/nginx.conf" /opt/cpm/infra/nginx.conf
+  install_ingress_config "$release"
   docker compose --project-name cpm-infra --env-file /opt/cpm/infra/images.env -f /opt/cpm/infra/infra.compose.yaml --profile ingress up -d --no-deps nginx || return 1
+  docker compose --project-name cpm-infra --env-file /opt/cpm/infra/images.env -f /opt/cpm/infra/infra.compose.yaml exec -T nginx nginx -t || return 1
+  docker compose --project-name cpm-infra --env-file /opt/cpm/infra/images.env -f /opt/cpm/infra/infra.compose.yaml exec -T nginx nginx -s reload || return 1
   for attempt in {1..10}; do
     if curl --fail --silent --max-time 5 http://127.0.0.1/health/ready >/dev/null; then return 0; fi
     sleep 2
@@ -50,7 +58,7 @@ else
   if [[ -n $previous && -f $previous/release.json ]]; then
     docker compose --project-name cpm-prod --env-file "$previous/images.env" -f "$previous/prod/compose.yaml" "${resources[@]}" up -d --no-build --pull never
     python3 "$previous/prod/scripts/readiness.py"
-    cp "$previous/prod/nginx.conf" /opt/cpm/infra/nginx.conf
+    install_ingress_config "$previous"
     docker compose --project-name cpm-infra --env-file /opt/cpm/infra/images.env -f /opt/cpm/infra/infra.compose.yaml --profile ingress up -d --no-deps --force-recreate nginx
     echo 'Previous release restored' >&2
   else

@@ -18,7 +18,7 @@ def ready(ports):
   c=container(name);ip=c['NetworkSettings']['Networks']['cpm-prod-backend']['IPAddress'];path='/readyz' if name=='file-work-service' else '/health/ready'
   if request('http://'+ip+':'+str(port)+path)[0]!=200:raise ValueError('not ready '+name)
  bff=container('bff');ip=bff['NetworkSettings']['Networks']['cpm-prod-backend']['IPAddress'];base='http://'+ip+':8001'
- for origin in ['https://cpm-lms.ru','http://localhost:3000','http://185.239.51.138']:
+ for origin in ['https://cpm-lms.ru','http://localhost:3000','http://185.239.51.138','https://back1.cpm-lms.ru']:
   status,headers,_=request(base+'/bff/auth/login','OPTIONS',{'Origin':origin,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'Content-Type,X-CPM-Request'})
   if status!=204 or headers.get('Access-Control-Allow-Origin')!=origin:raise ValueError('BFF CORS failed')
  status,_,_=request(base+'/bff/core/students',headers={'X-CPM-Request':'1'})

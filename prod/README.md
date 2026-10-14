@@ -1,7 +1,7 @@
 # CPM production backend
 
 Server: Ubuntu 24.04, 4 vCPU, 8 GB RAM, external MySQL/S3 and local MongoDB with persistent SSD storage.
-The frontend, HTTPS/domain and load testing are separate stages.
+The frontend is deployed separately. Public backend: `https://back1.cpm-lms.ru/bff/`.
 
 ## Release
 
@@ -34,11 +34,14 @@ This configuration does not prove capacity for 450–700 simultaneous test taker
 
 ## Access and recovery
 
-Public: SSH and HTTP port 80. API routes: `/bff/`; native application ports are internal.
+Public: SSH, HTTP port 80 and HTTPS port 443. API routes: `/bff/`; native application ports are internal.
 Portainer 9443, RabbitMQ management 15672, Prometheus 9090 bind to localhost.
 Use SSH local forwarding for access. Portainer credentials are in the private bootstrap profile.
-HTTP backend cannot serve the existing HTTPS frontend yet; diagnostic login uses an SSH tunnel.
-Cookies remain HttpOnly/SameSite=Strict; Secure is explicitly configurable for the HTTPS stage.
+The HTTPS frontend can use `https://back1.cpm-lms.ru/bff/` once its API address is switched separately.
+Cookies are Secure/HttpOnly/SameSite=Strict. Exact allowed origins include `https://cpm-lms.ru`,
+`http://localhost:3000`, `http://185.239.51.138` and `https://back1.cpm-lms.ru`.
+HTTP on the backend hostname redirects to HTTPS; localhost/IP readiness stays available for deployment probes.
+For an HTTP localhost frontend use a local HTTPS proxy or the dev contour: browser SameSite/Secure rules still apply.
 
 Docker restarts exited processes. The systemd watchdog checks liveness only:
 three failed minute checks, at most three restarts per 15 minutes, with a startup grace period.
@@ -72,3 +75,20 @@ Restore into an isolated MongoDB instance before replacing real data; decrypt wi
 `/opt/cpm/tools/bin/python /opt/cpm/infra/scripts/mongo_backup.py --decrypt ENCRYPTED ARCHIVE`,
 then use `mongorestore --gzip --archive=ARCHIVE --oplogReplay` on that isolated instance.
 Never point a restore test at the live database and never delete the persistent data directory.
+
+## HTTPS and renewal
+
+Timeweb A record `back1.cpm-lms.ru` points to `185.239.51.138`. Nginx terminates TLS 1.2/1.3.
+The bootstrap `nginx.conf` serves HTTP ACME challenges. After issuance, install `nginx.tls.conf`
+as `/etc/cpm/prod/nginx.conf` and copy it to `/opt/cpm/infra/nginx.conf`. This host policy takes
+precedence over bundled Nginx configurations in both deployment and rollback, including old releases.
+The host infrastructure Compose file publishes 443 and mounts the certificate directory and ACME webroot read-only.
+Before starting Nginx on a fresh host, create `/etc/letsencrypt` and `/var/lib/letsencrypt`.
+Certificates/keys remain on the host, never in Git, images or release artifacts.
+
+Initial issuance: `certbot certonly --webroot -w /var/lib/letsencrypt -d back1.cpm-lms.ru`.
+Use the official host `certbot.timer` for renewal checks. Install `scripts/certbot-nginx-reload`
+as executable `/etc/letsencrypt/renewal-hooks/deploy/cpm-nginx-reload`; it validates Nginx before reload.
+Verify using `certbot renew --dry-run --run-deploy-hooks`. Do not remove ACME HTTP access or
+mount only the `live/` directory: its symlinks require the sibling `archive/` directory.
+The ACME account was registered without email; an operator can add a monitored address later.
