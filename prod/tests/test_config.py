@@ -17,4 +17,15 @@ class ProductionConfigTest(unittest.TestCase):
   import yaml
   for service in yaml.safe_load((PROD/'infra.compose.yaml').read_text())['services'].values():
    for mount in service.get('tmpfs',[]):self.assertTrue(mount.startswith('/'),mount)
+ def test_auth_memory_policy_survives_deploy_and_rollback(self):
+  import yaml
+  base=yaml.safe_load((PROD/'compose.yaml').read_text())['services']['auth']
+  policy=yaml.safe_load((PROD/'resources.compose.yaml').read_text())['services']['auth']
+  for item in (base,policy):
+   self.assertEqual(item['mem_limit'],'1g')
+   self.assertEqual(item['memswap_limit'],'1g')
+   self.assertEqual(item['environment']['GOMEMLIMIT'],'768MiB')
+  deploy=(PROD/'scripts/deploy.sh').read_text()
+  self.assertIn('resources=(-f /etc/cpm/prod/resources.compose.yaml)',deploy)
+  self.assertEqual(deploy.count('"${resources[@]}"'),2)
 if __name__=='__main__':unittest.main()

@@ -8,7 +8,11 @@ flock -n 9 || { echo 'Another deployment is active' >&2; exit 1; }
 # Files are from the verified workflow artifact; secrets and data stay outside releases.
 python3 /opt/cpm/infra/scripts/release.py "$release" >/dev/null
 previous=$(readlink -f /opt/cpm/current || true)
-compose=(docker compose --project-name cpm-prod --env-file "$release/images.env" -f "$release/prod/compose.yaml")
+resources=()
+if [[ -f /etc/cpm/prod/resources.compose.yaml ]]; then
+  resources=(-f /etc/cpm/prod/resources.compose.yaml)
+fi
+compose=(docker compose --project-name cpm-prod --env-file "$release/images.env" -f "$release/prod/compose.yaml" "${resources[@]}")
 "${compose[@]}" config --quiet
 # Registry login uses the caller's short-lived token, never a permanent broad PAT.
 if [[ $mode == deploy ]]; then
@@ -44,7 +48,7 @@ if "${compose[@]}" up -d --no-build --pull never && python3 "$release/prod/scrip
 else
   echo 'Release verification failed; restoring previous images' >&2
   if [[ -n $previous && -f $previous/release.json ]]; then
-    docker compose --project-name cpm-prod --env-file "$previous/images.env" -f "$previous/prod/compose.yaml" up -d --no-build --pull never
+    docker compose --project-name cpm-prod --env-file "$previous/images.env" -f "$previous/prod/compose.yaml" "${resources[@]}" up -d --no-build --pull never
     python3 "$previous/prod/scripts/readiness.py"
     cp "$previous/prod/nginx.conf" /opt/cpm/infra/nginx.conf
     docker compose --project-name cpm-infra --env-file /opt/cpm/infra/images.env -f /opt/cpm/infra/infra.compose.yaml --profile ingress up -d --no-deps --force-recreate nginx

@@ -21,12 +21,15 @@ Local connection profile: `dev/local/adminvps/profile.json` (private, not publis
 ## Resources
 
 The application/infrastructure `cpm.slice` is bounded to 4.5 GiB, and MongoDB has a separate 1.5 GiB budget in `cpm-mongo.slice`. About 1.75 GiB remains for the host.
-Application MemoryHigh is 4 GiB; individual service peaks stay unchanged. Individual container limits are peaks, not reserved allocations:
-Auth/BFF/Cards/Attendance/Uploads 512 MiB; Core/Exams/Homework/Ratings 768 MiB;
+Application MemoryHigh is 4 GiB. Individual container limits are peaks, not reserved allocations:
+Auth 1 GiB (Go soft target 768 MiB); BFF/Cards/Attendance/Uploads 512 MiB; Core/Exams/Homework/Ratings 768 MiB;
 Tests/Calculate 1 GiB; PDF worker 1.5 GiB.
 Infrastructure limits: RabbitMQ 768 MiB, Redis 320 MiB, Portainer/Prometheus 256 MiB, Nginx 96 MiB.
 Peaks cannot all be reached simultaneously; monitor the shared budget before increasing workload.
 Go memory targets leave room for buffers and native PDF tools.
+The sum of individual application limits is 9.5 GiB; infrastructure adds 3.15625 GiB (12.65625 GiB total).
+The aggregate hard ceilings remain 4.5 GiB plus 1.5 GiB for MongoDB, so individual maxima cannot all be used at once.
+The root-owned `/etc/cpm/prod/resources.compose.yaml` host policy keeps Auth's 1 GiB limit and 768 MiB Go target on both deployments and rollbacks. Its template is `prod/resources.compose.yaml`; immutable release bundles are not edited for runtime resource changes.
 This configuration does not prove capacity for 450–700 simultaneous test takers.
 
 ## Access and recovery
