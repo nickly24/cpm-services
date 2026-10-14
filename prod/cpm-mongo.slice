@@ -1,0 +1,8 @@
+[Unit]
+Description=CPM MongoDB memory budget
+[Slice]
+MemoryAccounting=true
+MemoryLow=512M
+MemoryHigh=1280M
+MemoryMax=1536M
+MemorySwapMax=0

@@ -1,6 +1,6 @@
 # CPM production backend
 
-Server: Ubuntu 24.04, 4 vCPU, 8 GB RAM, external MySQL/MongoDB/S3.
+Server: Ubuntu 24.04, 4 vCPU, 8 GB RAM, external MySQL/S3 and local MongoDB with persistent SSD storage.
 The frontend, HTTPS/domain and load testing are separate stages.
 
 ## Release
@@ -20,8 +20,8 @@ Local connection profile: `dev/local/adminvps/profile.json` (private, not publis
 
 ## Resources
 
-The shared `cpm.slice` bounds all CPM containers to 6 GiB, reserving about 1.75 GiB for the host.
-MemoryHigh is 5.5 GiB. Individual container limits are peaks, not reserved allocations:
+The application/infrastructure `cpm.slice` is bounded to 4.5 GiB, and MongoDB has a separate 1.5 GiB budget in `cpm-mongo.slice`. About 1.75 GiB remains for the host.
+Application MemoryHigh is 4 GiB; individual service peaks stay unchanged. Individual container limits are peaks, not reserved allocations:
 Auth/BFF/Cards/Attendance/Uploads 512 MiB; Core/Exams/Homework/Ratings 768 MiB;
 Tests/Calculate 1 GiB; PDF worker 1.5 GiB.
 Infrastructure limits: RabbitMQ 768 MiB, Redis 320 MiB, Portainer/Prometheus 256 MiB, Nginx 96 MiB.
@@ -43,3 +43,29 @@ External DB readiness failures do not trigger watchdog restarts.
 Workers use 60-second shutdown windows, the PDF worker 150 seconds.
 A failed deployment restores the previous images. If the first release fails, ingress and apps stop;
 data and diagnostic infrastructure remain. Database migrations are never run by deployment.
+
+## MongoDB persistence and backups
+
+MongoDB 8.0 runs as the single member of replica set `cpm-rs` for consistent oplog backups.
+Its data and journal reside on the server SSD at `/srv/cpm/mongo/data` (bind mount to `/data/db`),
+with `/srv/cpm/mongo/configdb` separate. Replacing an image/container never removes these paths.
+Mongo is reachable through Docker DNS `mongo:27017`; host port 27017 binds only to localhost.
+Backend credentials have read/write access only to `default_db`; administration credentials remain separate.
+Tests and Calculate acknowledge writes with majority write concern and `j:true`.
+The 512 MiB WiredTiger cache fits inside a 1.5 GiB process budget.
+
+`cpm-mongo-backup.timer` runs once daily at 03:00 Europe/Moscow, without jitter.
+Full `mongodump --oplog` archives are encrypted using AES-256-GCM before upload to existing external S3.
+Keep the two latest successful encrypted backups locally and the two latest in S3 under this installation's own prefix.
+Only after a new archive is uploaded and verified does rotation remove older copies; failed backup runs preserve the previous copies.
+The scheduled backup gap is one day plus run duration when backups succeed. A missed timer runs after the server returns (Persistent=true).
+This is a single host; disk/host loss requires restoring an external backup.
+Encryption key: `/etc/cpm/prod/mongo-backup.key`, with an additional private local copy.
+Backup credentials/configuration and the replica-set key are under `/etc/cpm/prod/`, excluded from Git.
+
+Inspect backup status: `systemctl status cpm-mongo-backup.timer cpm-mongo-backup.service`.
+Last successful backup: `/srv/cpm/backups/mongo/latest.json`.
+Restore into an isolated MongoDB instance before replacing real data; decrypt with
+`/opt/cpm/tools/bin/python /opt/cpm/infra/scripts/mongo_backup.py --decrypt ENCRYPTED ARCHIVE`,
+then use `mongorestore --gzip --archive=ARCHIVE --oplogReplay` on that isolated instance.
+Never point a restore test at the live database and never delete the persistent data directory.

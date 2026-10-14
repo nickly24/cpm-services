@@ -12,5 +12,9 @@ class ProductionConfigTest(unittest.TestCase):
   text=(PROD/'infra.compose.yaml').read_text()
   for port in ['127.0.0.1:9443:9443','127.0.0.1:9090:9090','127.0.0.1:15672:15672']:self.assertIn(port,text)
   self.assertIn('https://cpm-lms.ru,http://localhost:3000,http://185.239.51.138',(PROD/'.env.example').read_text())
-  self.assertIn('MemoryMax=6144M',(PROD/'cpm.slice').read_text())
+  self.assertIn('MemoryMax=4608M',(PROD/'cpm.slice').read_text())
+ def test_tmpfs_mount_paths_are_absolute(self):
+  import yaml
+  for service in yaml.safe_load((PROD/'infra.compose.yaml').read_text())['services'].values():
+   for mount in service.get('tmpfs',[]):self.assertTrue(mount.startswith('/'),mount)
 if __name__=='__main__':unittest.main()

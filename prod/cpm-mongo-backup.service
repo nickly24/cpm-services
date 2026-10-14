@@ -1,0 +1,11 @@
+[Unit]
+Description=Encrypted consistent MongoDB backup to S3
+After=docker.service network-online.target
+[Service]
+Type=oneshot
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ExecStart=/opt/cpm/tools/bin/python /opt/cpm/infra/scripts/mongo_backup.py
+TimeoutStartSec=20min

@@ -92,7 +92,10 @@ jobs:
           merge-multiple: true
           path: digests
       - name: Check production artifacts
-        run: python3 -m unittest discover -s prod/tests -v
+        run: |
+          python3 -m venv /tmp/cpm-prod-checks
+          /tmp/cpm-prod-checks/bin/pip install cryptography PyYAML
+          /tmp/cpm-prod-checks/bin/python -m unittest discover -s prod/tests -v
       - name: Build release manifest
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}

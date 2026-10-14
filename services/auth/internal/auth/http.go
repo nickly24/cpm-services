@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -16,10 +17,12 @@ import (
 var openAPI []byte
 
 type Server struct {
-	Operations *OperationService
-	Repo       *Repository
-	Tokens     *Tokens
-	Config     Config
+	Operations    *OperationService
+	Repo          *Repository
+	Tokens        *Tokens
+	Config        Config
+	passwordOnce  sync.Once
+	passwordSlots chan struct{}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -130,11 +133,19 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a == nil {
-		DummyPasswordCheck(input.Password)
+		if _, err := s.passwordWork(r.Context(), func() bool { DummyPasswordCheck(input.Password); return false }); err != nil {
+			failure(w, 503, "request_cancelled")
+			return
+		}
 		failure(w, 401, "invalid_credentials")
 		return
 	}
-	if !CheckPassword(a.Password, input.Password) {
+	matched, err := s.passwordWork(r.Context(), func() bool { return CheckPassword(a.Password, input.Password) })
+	if err != nil {
+		failure(w, 503, "request_cancelled")
+		return
+	}
+	if !matched {
 		failure(w, 401, "invalid_credentials")
 		return
 	}
