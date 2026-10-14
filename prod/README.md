@@ -1,7 +1,7 @@
 # CPM production backend
 
 Server: Ubuntu 24.04, 4 vCPU, 8 GB RAM, external MySQL/S3 and local MongoDB with persistent SSD storage.
-The frontend is deployed separately. Public backend: `https://back1.cpm-lms.ru/bff/`.
+The frontend is deployed separately. Public backend: `https://back1.cpm-lms.ru:8443/bff/`.
 
 ## Release
 
@@ -34,10 +34,10 @@ This configuration does not prove capacity for 450–700 simultaneous test taker
 
 ## Access and recovery
 
-Public: SSH, HTTP port 80 and HTTPS port 443. API routes: `/bff/`; native application ports are internal.
+Public: SSH, HTTP port 80 and HTTPS ports 443 and 8443. API routes: `/bff/`; native application ports are internal.
 Portainer 9443, RabbitMQ management 15672, Prometheus 9090 bind to localhost.
 Use SSH local forwarding for access. Portainer credentials are in the private bootstrap profile.
-The HTTPS frontend can use `https://back1.cpm-lms.ru/bff/` once its API address is switched separately.
+The HTTPS frontend can use `https://back1.cpm-lms.ru:8443/bff/` once its API address is switched separately.
 Cookies are Secure/HttpOnly/SameSite=Strict. Exact allowed origins include `https://cpm-lms.ru`,
 `http://localhost:3000`, `http://185.239.51.138` and `https://back1.cpm-lms.ru`.
 HTTP on the backend hostname redirects to HTTPS; localhost/IP readiness stays available for deployment probes.
@@ -82,7 +82,7 @@ Timeweb A record `back1.cpm-lms.ru` points to `185.239.51.138`. Nginx terminates
 The bootstrap `nginx.conf` serves HTTP ACME challenges. After issuance, install `nginx.tls.conf`
 as `/etc/cpm/prod/nginx.conf` and copy it to `/opt/cpm/infra/nginx.conf`. This host policy takes
 precedence over bundled Nginx configurations in both deployment and rollback, including old releases.
-The host infrastructure Compose file publishes 443 and mounts the certificate directory and ACME webroot read-only.
+The host infrastructure Compose file publishes 443 and 8443 and mounts the certificate directory and ACME webroot read-only.
 Before starting Nginx on a fresh host, create `/etc/letsencrypt` and `/var/lib/letsencrypt`.
 Certificates/keys remain on the host, never in Git, images or release artifacts.
 
@@ -92,3 +92,7 @@ as executable `/etc/letsencrypt/renewal-hooks/deploy/cpm-nginx-reload`; it valid
 Verify using `certbot renew --dry-run --run-deploy-hooks`. Do not remove ACME HTTP access or
 mount only the `live/` directory: its symlinks require the sibling `archive/` directory.
 The ACME account was registered without email; an operator can add a monitored address later.
+
+### External TLS entry port
+
+The active frontend uses `https://back1.cpm-lms.ru:8443/bff/`. On 2026-10-14 external TLS handshakes on 443 stalled both with Docker ingress and with a temporary host listener, while 8443 worked with the same certificate and then the same production Nginx listener. Port 8443 maps to Nginx container port 443; authorization, TLS verification, Secure cookies and service isolation are unchanged. HTTP redirects use 8443; HTTP ACME challenges remain on port 80. Keep `ufw allow 8443/tcp` on the host. Return the frontend to 443 only after an external authenticated smoke test succeeds.

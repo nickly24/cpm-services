@@ -49,11 +49,12 @@ class HTTPSPolicyTest(unittest.TestCase):
   import yaml
   nginx=yaml.safe_load((PROD/'infra.compose.yaml').read_text())['services']['nginx']
   self.assertIn('443:443',nginx['ports'])
+  self.assertIn('8443:443',nginx['ports'])
   for volume in ['/etc/letsencrypt:/etc/letsencrypt:ro','/var/lib/letsencrypt:/var/www/acme:ro']:self.assertIn(volume,nginx['volumes'])
   config=(PROD/'nginx.tls.conf').read_text()
   self.assertIn('root /var/www/acme;',config)
   self.assertIn('/etc/letsencrypt/live/back1.cpm-lms.ru/fullchain.pem',config)
-  self.assertIn('return 308 https://back1.cpm-lms.ru$request_uri;',config)
+  self.assertIn('return 308 https://back1.cpm-lms.ru:8443$request_uri;',config)
   self.assertIn('listen 80 default_server;',config)
   self.assertIn('ssl_protocols TLSv1.2 TLSv1.3;',config)
   hook=(PROD/'scripts/certbot-nginx-reload').read_text()
