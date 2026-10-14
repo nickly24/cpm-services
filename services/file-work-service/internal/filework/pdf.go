@@ -99,7 +99,10 @@ func (p PDFCompressor) inspect(ctx context.Context, path string, maxPages int) (
 	if ctx.Err() != nil {
 		return 0, nil, ctx.Err()
 	}
-	raw, err := p.runner().Run(ctx, p.QPDF, "--json=2", "--json-stream-data=none", path)
+	// qpdf uses exit 3 for recoverable warnings (for example an inaccurate
+	// trailer /Size). Keep fatal parser errors failing, and validate the recovered
+	// object graph below before passing anything to Ghostscript.
+	raw, err := p.runner().Run(ctx, p.QPDF, "--json=2", "--json-stream-data=none", "--warning-exit-0", path)
 	if err != nil {
 		if ctx.Err() != nil {
 			return 0, nil, ctx.Err()
@@ -189,7 +192,7 @@ func (p PDFCompressor) sanitize(ctx context.Context, input, output string, doc m
 		return err
 	}
 	defer os.Remove(patchFile)
-	_, err = p.runner().Run(ctx, p.QPDF, "--update-from-json="+patchFile, "--object-streams=generate", "--compress-streams=y", "--linearize", input, output)
+	_, err = p.runner().Run(ctx, p.QPDF, "--update-from-json="+patchFile, "--object-streams=generate", "--compress-streams=y", "--linearize", "--warning-exit-0", input, output)
 	return err
 }
 
@@ -305,7 +308,9 @@ func containsMetadata(v any) bool {
 }
 
 func artifactMetadata(c Command, a Artifact) map[string]string {
-	return map[string]string{"job_id": c.JobID, "generation": fmt.Sprint(c.Generation), "organization_id": fmt.Sprint(c.OrganizationID), "division_id": fmt.Sprint(c.DivisionID), "page_count": fmt.Sprint(a.PageCount), "sha256": a.SHA256}
+	// Use HTTP-safe metadata names: some S3 front proxies strip underscore headers,
+	// which invalidates the signed request. Homework accepts both historical and hyphenated names.
+	return map[string]string{"job-id": c.JobID, "generation": fmt.Sprint(c.Generation), "organization-id": fmt.Sprint(c.OrganizationID), "division-id": fmt.Sprint(c.DivisionID), "page-count": fmt.Sprint(a.PageCount), "sha256": a.SHA256}
 }
 
 // JPEG quality uses the IJG quantization scaling curve. pdfwrite image

@@ -86,8 +86,24 @@ func TestS3UploadDeterministicKeyAndIntegrityMetadata(t *testing.T) {
 		if !strings.Contains(string(body), "%PDF-output") {
 			t.Error("PDF body lost")
 		}
-		if r.Header.Get("X-Amz-Meta-Sha256") != strings.Repeat("a", 64) || r.Header.Get("X-Amz-Meta-Page_count") != "1" || r.Header.Get("Content-Type") != "application/pdf" {
+		if r.Header.Get("X-Amz-Meta-Sha256") != strings.Repeat("a", 64) || r.Header.Get("X-Amz-Meta-Page-Count") != "1" || r.Header.Get("Content-Type") != "application/pdf" {
 			t.Error("integrity metadata missing")
+		}
+
+		for name, value := range map[string]string{
+			"X-Amz-Meta-Job-Id":          validCommand().JobID,
+			"X-Amz-Meta-Organization-Id": fmt.Sprint(validCommand().OrganizationID),
+			"X-Amz-Meta-Division-Id":     fmt.Sprint(validCommand().DivisionID),
+			"X-Amz-Meta-Generation":      fmt.Sprint(validCommand().Generation),
+		} {
+			if r.Header.Get(name) != value {
+				t.Errorf("missing scoped metadata %s", name)
+			}
+		}
+		for name := range r.Header {
+			if strings.HasPrefix(strings.ToLower(name), "x-amz-meta-") && strings.Contains(name, "_") {
+				t.Errorf("S3 proxy-incompatible metadata header: %s", name)
+			}
 		}
 		uploads.Add(1)
 		w.Header().Set("ETag", "\"etag2\"")

@@ -7,7 +7,7 @@ Go 1.27.1 worker for homework PDF validation and compression. It consumes Rabbit
 1. Decode a strict, bounded version-1 command and validate organization/division S3 prefixes and policy ceilings.
 2. Ask homework to claim the exact job generation. Terminal/stale jobs return `run:false`; an active lease returns HTTP 409.
 3. Download with `If-Match` for the recorded S3 ETag. Check both advertised and streamed size.
-4. Verify PDF signature; qpdf rejects encrypted, damaged, empty, over-page-limit, scripted, embedded-file, XFA, multimedia, and remote-action content before Ghostscript sees the PDF.
+4. Verify PDF signature; qpdf rejects encrypted, unreadable, empty, over-page-limit, scripted, embedded-file, XFA, multimedia, and remote-action content before Ghostscript sees the PDF. Recoverable qpdf warnings are accepted only with a valid parsed object graph that passes the same policy checks; fatal parser errors still reject the file.
 5. Ghostscript `pdfwrite` downsamples photographic images using bicubic resampling and JPEG recompression. The policy supplies DPI and JPEG quality; vector text remains text. Defaults supplied by homework are 120 DPI and JPEG quality 75. It preserves page orientation and all pages, with an explicit page-count check.
 6. qpdf rewrites and linearizes the result after removing document information and XMP metadata references. If the image rewrite increases size, compare a metadata-clean structural rewrite of the verified input and select the smaller output. A tiny text-only PDF can still grow: metadata cleaning and PDF rewriting have overhead; universal size reduction is not guaranteed.
 7. Check output size and PDF validity again, hash SHA-256, and upload to the deterministic processed key with integrity metadata.
@@ -51,7 +51,7 @@ Internal homework calls use `X-Service-Key`:
 
 Result payload has `job_id`, `generation`, `organization_id`, `division_id`, `output_key`, `size_bytes`, `page_count`, `sha256`, `error_code`, `claim_token`. Empty `error_code` is success. A rejection still carries the current claim token, and numeric/hash fields are empty. Result message IDs include job, generation, and claim token to keep deduplication distinct across owners.
 
-Output S3 metadata: `job_id`, `generation`, `organization_id`, `division_id`, `page_count`, `sha256`. Output path is checked exactly; the command cannot redirect the worker to another division or arbitrary bucket/object.
+Output S3 metadata: `job-id`, `generation`, `organization-id`, `division-id`, `page-count`, `sha256`. Hyphens preserve signed headers through HTTP gateways that discard underscore headers. Homework also accepts historical underscore names. Output path is checked exactly; the command cannot redirect the worker to another division or arbitrary bucket/object.
 
 ## Delivery and recovery
 

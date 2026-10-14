@@ -3,6 +3,8 @@ package filework
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -211,5 +213,48 @@ func TestRealPDFMultiPageTextFallback(t *testing.T) {
 	a, err := p.Compress(ctx, source, dir, validCommand().Limits)
 	if err != nil || a.PageCount != 3 {
 		t.Fatalf("text-only fallback failed: %+v %v", a, err)
+	}
+}
+
+func TestRealPDFRecoverableWarningStillValidatesContent(t *testing.T) {
+	p := realPDFTools(t)
+	for _, active := range []bool{false, true} {
+		t.Run(fmt.Sprint("active=", active), func(t *testing.T) {
+			dir := t.TempDir()
+			source := filepath.Join(dir, "source.pdf")
+			makeSyntheticPDF(t, source, false, 2, active, true)
+			raw, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// The cross-reference table and objects are intact, but the trailer
+			// overstates /Size, as in the incident's mobile-generated PDFs.
+			raw = bytes.Replace(raw, []byte("trailer\n<< /Size 9 "), []byte("trailer\n<< /Size 999 "), 1)
+			if err = os.WriteFile(source, raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			check, err := exec.Command("qpdf", "--json=2", "--json-stream-data=none", source).Output()
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 3 || !json.Valid(check) {
+				t.Fatalf("fixture must produce valid JSON with warning exit 3: %v", err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			a, err := p.Compress(ctx, source, dir, validCommand().Limits)
+			if active {
+				code, permanent := permanentCode(err)
+				if !permanent || code != "active_content" {
+					t.Fatalf("warning bypassed active-content policy: %v", err)
+				}
+				return
+			}
+			if err != nil || a.PageCount != 2 {
+				t.Fatalf("recoverable PDF lost pages or failed: %+v %v", a, err)
+			}
+			text, err := exec.Command("pdftotext", a.Path, "-").Output()
+			if err != nil || bytes.Count(text, []byte("Homework readable text 12345")) != 2 {
+				t.Fatal("recoverable PDF lost selectable text", err)
+			}
+		})
 	}
 }
