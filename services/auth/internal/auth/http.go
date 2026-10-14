@@ -212,18 +212,13 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (*Account,
 		failure(w, 401, "invalid_token")
 		return nil, Session{}, UserDTO{}, false
 	}
-	session, err := s.Repo.Session(r.Context(), c.SessionID)
+	a, session, err := s.Repo.SessionAccount(r.Context(), c.SessionID)
 	if err != nil {
 		s.authError(w, err)
 		return nil, Session{}, UserDTO{}, false
 	}
 	if session.ContextVersion != c.ContextVersion || session.UserID != c.AccountID || session.Context.OrganizationID != c.OrganizationID || !sameID(session.Context.DivisionID, c.DivisionID) {
 		failure(w, 401, "invalid_token")
-		return nil, Session{}, UserDTO{}, false
-	}
-	a, err := s.Repo.LoadAccount(r.Context(), c.AccountID)
-	if err != nil {
-		s.authError(w, err)
 		return nil, Session{}, UserDTO{}, false
 	}
 	if a.AuthVersion != c.AuthVersion || a.LegacySessionVersion != c.SessionVersion || a.AuthVersion != session.AuthVersion || a.LegacySessionVersion != session.LegacySessionVersion || a.Role != c.Role || a.EntityID != c.UserDTO.ID {

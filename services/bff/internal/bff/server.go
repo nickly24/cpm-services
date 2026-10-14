@@ -368,35 +368,49 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// No permission cache: each browser operation sees current auth state.
-	code, data, retryAfter := s.callResponse(ctx, s.config.Auth, "GET", "/v1/auth/me", v.identity.Access, nil, rid)
-	if code != 200 {
-		if code == 401 {
-			if err := lease.delete(ctx); err != nil {
-				sessionFailure(w, err)
-				return
+	var code int
+	var data []byte
+	var retryAfter string
+	// Context/logout authenticate inside Auth themselves. Other browser operations
+	// still obtain live permissions once; Tests reuse that signed request context.
+	if !(r.Method == "POST" && (path == "auth/context" || path == "auth/logout")) {
+		// No permission cache: each browser operation sees current auth state.
+		code, data, retryAfter = s.callResponse(ctx, s.config.Auth, "GET", "/v1/auth/me", v.identity.Access, nil, rid)
+		if code != 200 {
+			if code == 401 {
+				if err := lease.delete(ctx); err != nil {
+					sessionFailure(w, err)
+					return
+				}
+				s.cookie(w, "")
 			}
-			s.cookie(w, "")
+			upstream(w, code, data, retryAfter)
+			return
 		}
-		upstream(w, code, data, retryAfter)
-		return
-	}
-	var current Identity
-	if json.Unmarshal(data, &current) != nil {
-		failure(w, 502, "invalid_upstream_response")
-		return
-	}
-	v.identity.User = current.User
-	v.identity.Organizations = current.Organizations
-	ctx = withGatewayIdentity(ctx, current.User)
-	r = r.WithContext(ctx)
-	if path == "auth/me" && r.Method == "GET" {
-		identity(w, v)
-		return
+		var current Identity
+		if json.Unmarshal(data, &current) != nil {
+			failure(w, 502, "invalid_upstream_response")
+			return
+		}
+		v.identity.User = current.User
+		v.identity.Organizations = current.Organizations
+		ctx = withGatewayIdentity(ctx, current.User)
+		r = r.WithContext(ctx)
+		if path == "auth/me" && r.Method == "GET" {
+			identity(w, v)
+			return
+		}
 	}
 	if path == "auth/context" && r.Method == "POST" {
 		code, data = s.call(ctx, s.config.Auth, "POST", "/v1/auth/context", v.identity.Access, body, rid)
 		if code != 200 {
+			if code == 401 {
+				if err := lease.delete(ctx); err != nil {
+					sessionFailure(w, err)
+					return
+				}
+				s.cookie(w, "")
+			}
 			upstream(w, code, data)
 			return
 		}

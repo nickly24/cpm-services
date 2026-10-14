@@ -9,144 +9,140 @@ import (
 
 type Repository struct{ DB *sql.DB }
 
+// accountSnapshot reads live account, profile and tenant permissions in one SQL
+// statement. There is no permission cache. LEFT joins retain organisations with
+// no divisions, while role-specific profile joins prevent cross-role ID matches.
+const accountSnapshot = `
+ FROM auth_users a
+ JOIN auth_account_state ast ON ast.user_id=a.id AND ast.is_active=1
+ LEFT JOIN students ps ON a.role='student' AND ps.id=a.ref_id
+ LEFT JOIN proctors pp ON a.role='proctor' AND pp.id=a.ref_id
+ LEFT JOIN examinators pe ON a.role='examinator' AND pe.id=a.ref_id
+ LEFT JOIN admins pa ON a.role='admin' AND pa.id=a.ref_id
+ LEFT JOIN supervisors pv ON a.role='supervisor' AND pv.id=a.ref_id
+ LEFT JOIN admin_role_users pf ON a.role='staff_admin' AND pf.id=a.ref_id
+ LEFT JOIN (auth_organization_access oa JOIN organizations o ON o.id=oa.organization_id AND o.is_active=1)
+   ON oa.user_id=a.id
+ LEFT JOIN auth_division_access dx ON a.role<>'admin' AND dx.user_id=a.id AND dx.organization_id=o.id
+ LEFT JOIN divisions md ON md.id=dx.division_id AND md.organization_id=o.id AND md.is_active=1
+ LEFT JOIN divisions ad ON a.role='admin' AND ad.organization_id=o.id AND ad.is_active=1
+ LEFT JOIN auth_scoped_roles sr ON sr.id=dx.role_id AND sr.organization_id=dx.organization_id
+ LEFT JOIN auth_scoped_role_permissions rp ON a.role='staff_admin' AND md.id IS NOT NULL AND rp.role_id=dx.role_id
+`
+const accountColumns = `a.id,a.ref_id,a.username,a.role,ast.auth_version,
+ CASE a.role WHEN 'student' THEN ps.id WHEN 'proctor' THEN pp.id WHEN 'examinator' THEN pe.id
+   WHEN 'admin' THEN pa.id WHEN 'supervisor' THEN pv.id WHEN 'staff_admin' THEN pf.id END,
+ CASE a.role WHEN 'student' THEN ps.full_name WHEN 'proctor' THEN pp.full_name WHEN 'examinator' THEN pe.full_name
+   WHEN 'admin' THEN pa.full_name WHEN 'supervisor' THEN pv.full_name WHEN 'staff_admin' THEN pf.full_name END,
+ CASE WHEN a.role='staff_admin' THEN pf.is_active ELSE 1 END,
+ CASE WHEN a.role='staff_admin' THEN pf.session_version ELSE 0 END,
+ o.id,o.name,COALESCE(ad.id,md.id),COALESCE(ad.name,md.name),dx.group_id,dx.role_id,COALESCE(sr.name,''),
+ rp.section,rp.can_view,rp.can_edit`
+
 func (r *Repository) FindAccount(ctx context.Context, login string) (*Account, error) {
-	var id int64
-	var password sql.NullString
-	err := r.DB.QueryRowContext(ctx, "SELECT id,password FROM auth_users WHERE username=?", login).Scan(&id, &password)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	a, err := r.LoadAccount(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	a.Password = password.String
-	return a, nil
+	a, _, err := r.account(ctx, "a.username=?", []any{login}, false, true)
+	return a, err
 }
 
 func (r *Repository) LoadAccount(ctx context.Context, id int64) (*Account, error) {
+	a, _, err := r.account(ctx, "a.id=?", []any{id}, false, false)
+	return a, err
+}
+
+// SessionAccount avoids separately re-reading the same account after checking
+// its session. Versions and the selected cabinet are still validated by Auth.
+func (r *Repository) SessionAccount(ctx context.Context, sid string) (*Account, Session, error) {
+	return r.account(ctx, "sess.id=?", []any{sid}, true, false)
+}
+
+func (r *Repository) account(ctx context.Context, where string, args []any, withSession, password bool) (*Account, Session, error) {
+	columns, joins := accountColumns, accountSnapshot
+	if password {
+		columns += ",a.password"
+	}
+	if withSession {
+		columns += ",sess.id,sess.user_id,sess.organization_id,sess.division_id,sess.expires_at,sess.revoked_at,sess.auth_version,sess.session_version,sess.context_version"
+		joins += " JOIN auth_sessions sess ON sess.user_id=a.id "
+	}
+	rows, err := r.DB.QueryContext(ctx, "SELECT "+columns+joins+" WHERE "+where+" ORDER BY o.id,COALESCE(ad.id,md.id),rp.section", args...)
+	if err != nil {
+		return nil, Session{}, err
+	}
+	defer rows.Close()
 	a := &Account{Organizations: []Organization{}}
-	err := r.DB.QueryRowContext(ctx, `SELECT a.id,a.ref_id,a.username,a.role,s.auth_version FROM auth_users a
- JOIN auth_account_state s ON s.user_id=a.id WHERE a.id=? AND s.is_active=1`, id).
-		Scan(&a.UserID, &a.EntityID, &a.Username, &a.Role, &a.AuthVersion)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrCredentials
-	}
-	if err != nil {
-		return nil, err
-	}
-	table, ok := profileTables[a.Role]
-	if !ok {
-		return nil, ErrCredentials
-	}
-	if a.Role == "staff_admin" {
-		var active bool
-		err = r.DB.QueryRowContext(ctx, "SELECT full_name,is_active,session_version FROM admin_role_users WHERE id=?", a.EntityID).Scan(&a.FullName, &active, &a.LegacySessionVersion)
-		if err == nil && !active {
-			return nil, ErrCredentials
-		}
-	} else {
-		err = r.DB.QueryRowContext(ctx, "SELECT full_name FROM `"+table+"` WHERE id=?", a.EntityID).Scan(&a.FullName)
-	}
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrCredentials
-	}
-	if err != nil {
-		return nil, err
-	}
-	rows, err := r.DB.QueryContext(ctx, `SELECT o.id,o.name FROM auth_organization_access x JOIN organizations o ON o.id=x.organization_id
- WHERE x.user_id=? AND o.is_active=1 ORDER BY o.id`, id)
-	if err != nil {
-		return nil, err
-	}
+	var session Session
+	found := false
 	for rows.Next() {
-		o := Organization{Divisions: []Division{}}
-		if err = rows.Scan(&o.ID, &o.Name); err != nil {
-			rows.Close()
-			return nil, err
+		var profileID, oid, did sql.NullInt64
+		var name, orgName, divName, section sql.NullString
+		var active, view, edit sql.NullBool
+		var legacy sql.NullInt64
+		var revoked sql.NullTime
+		var hash sql.NullString
+		d := Division{Permissions: map[string]Permission{}}
+		dest := []any{&a.UserID, &a.EntityID, &a.Username, &a.Role, &a.AuthVersion, &profileID, &name, &active, &legacy,
+			&oid, &orgName, &did, &divName, &d.GroupID, &d.RoleID, &d.RoleName, &section, &view, &edit}
+		if password {
+			dest = append(dest, &hash)
 		}
-		a.Organizations = append(a.Organizations, o)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, err
-	}
-	if a.Role == "admin" && len(a.Organizations) > 1 {
-		return nil, ErrForbidden
-	}
-	for i := range a.Organizations {
-		o := &a.Organizations[i]
-		query := `SELECT d.id,d.name,x.group_id,x.role_id,COALESCE(sr.name,'') FROM auth_division_access x
-   JOIN divisions d ON d.id=x.division_id AND d.organization_id=x.organization_id
-   LEFT JOIN auth_scoped_roles sr ON sr.id=x.role_id AND sr.organization_id=x.organization_id
-   WHERE x.user_id=? AND x.organization_id=? AND d.is_active=1 ORDER BY d.id`
-		args := []any{id, o.ID}
-		if a.Role == "admin" {
-			query = "SELECT id,name,NULL,NULL,'' FROM divisions WHERE organization_id=? AND is_active=1 ORDER BY id"
-			args = []any{o.ID}
+		if withSession {
+			dest = append(dest, &session.ID, &session.UserID, &session.Context.OrganizationID, &session.Context.DivisionID, &session.ExpiresAt, &revoked, &session.AuthVersion, &session.LegacySessionVersion, &session.ContextVersion)
 		}
-		rows, err = r.DB.QueryContext(ctx, query, args...)
-		if err != nil {
-			return nil, err
+		if err = rows.Scan(dest...); err != nil {
+			return nil, Session{}, err
 		}
-		for rows.Next() {
-			d := Division{Permissions: map[string]Permission{}}
-			if err = rows.Scan(&d.ID, &d.Name, &d.GroupID, &d.RoleID, &d.RoleName); err != nil {
-				rows.Close()
-				return nil, err
-			}
-			if a.Role == "staff_admin" && d.RoleID == nil {
-				continue
-			}
-			o.Divisions = append(o.Divisions, d)
+		if _, ok := profileTables[a.Role]; !ok || !profileID.Valid || !active.Valid || !active.Bool {
+			return nil, Session{}, ErrCredentials
 		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return nil, err
+		if withSession && (revoked.Valid || !session.ExpiresAt.After(time.Now())) {
+			return nil, Session{}, ErrToken
 		}
-		for j := range o.Divisions {
-			d := &o.Divisions[j]
+		found = true
+		a.FullName = name.String
+		a.LegacySessionVersion = legacy.Int64
+		a.Password = hash.String
+		if !oid.Valid {
+			continue
+		}
+		if len(a.Organizations) == 0 || a.Organizations[len(a.Organizations)-1].ID != oid.Int64 {
+			a.Organizations = append(a.Organizations, Organization{ID: oid.Int64, Name: orgName.String, Divisions: []Division{}})
+		}
+		o := &a.Organizations[len(a.Organizations)-1]
+		if !did.Valid || a.Role == "staff_admin" && d.RoleID == nil {
+			continue
+		}
+		if len(o.Divisions) == 0 || o.Divisions[len(o.Divisions)-1].ID != did.Int64 {
+			d.ID = did.Int64
+			d.Name = divName.String
 			if a.Role == "admin" {
 				for _, s := range Sections {
 					d.Permissions[s] = Permission{true, true}
 				}
-				continue
 			}
-			// Delegated roles only. Ordinary role permissions are enforced by each domain.
-			if a.Role != "staff_admin" || d.RoleID == nil {
-				continue
-			}
-			rows, err = r.DB.QueryContext(ctx, "SELECT section,can_view,can_edit FROM auth_scoped_role_permissions WHERE role_id=?", *d.RoleID)
-			if err != nil {
-				return nil, err
-			}
-			for rows.Next() {
-				var section string
-				var p Permission
-				if err = rows.Scan(&section, &p.View, &p.Edit); err != nil {
-					rows.Close()
-					return nil, err
+			o.Divisions = append(o.Divisions, d)
+		}
+		if a.Role == "staff_admin" && section.Valid {
+			for _, s := range Sections {
+				if section.String == s {
+					o.Divisions[len(o.Divisions)-1].Permissions[s] = Permission{view.Bool, edit.Bool}
+					break
 				}
-				for _, s := range Sections {
-					if section == s {
-						d.Permissions[section] = p
-						break
-					}
-				}
-			}
-			err = rows.Err()
-			rows.Close()
-			if err != nil {
-				return nil, err
 			}
 		}
 	}
-	return a, nil
+	if err = rows.Err(); err != nil {
+		return nil, Session{}, err
+	}
+	if !found {
+		if withSession {
+			return nil, Session{}, ErrToken
+		}
+		return nil, Session{}, ErrCredentials
+	}
+	if a.Role == "admin" && len(a.Organizations) > 1 {
+		return nil, Session{}, ErrForbidden
+	}
+	return a, session, nil
 }
 
 func (r *Repository) NewSession(ctx context.Context, s Session, refreshHash string) error {
