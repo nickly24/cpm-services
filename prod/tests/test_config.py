@@ -22,9 +22,9 @@ class ProductionConfigTest(unittest.TestCase):
   base=yaml.safe_load((PROD/'compose.yaml').read_text())['services']['auth']
   policy=yaml.safe_load((PROD/'resources.compose.yaml').read_text())['services']['auth']
   for item in (base,policy):
-   self.assertEqual(item['mem_limit'],'1g')
-   self.assertEqual(item['memswap_limit'],'1g')
-   self.assertEqual(item['environment']['GOMEMLIMIT'],'768MiB')
+   self.assertEqual(item['mem_limit'],'1536m')
+   self.assertEqual(item['memswap_limit'],'1536m')
+   self.assertEqual(item['environment']['GOMEMLIMIT'],'1152MiB')
   deploy=(PROD/'scripts/deploy.sh').read_text()
   self.assertIn('resources=(-f /etc/cpm/prod/resources.compose.yaml)',deploy)
   self.assertEqual(deploy.count('"${resources[@]}"'),2)

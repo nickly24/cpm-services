@@ -36,7 +36,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(15)
+	db.SetMaxOpenConns(30)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	service := &core.Server{DB: db, Auth: core.NewAuthClient(cfg), InternalKey: cfg.InternalKey, Reports: core.NewReportClient(cfg)}

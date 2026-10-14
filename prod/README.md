@@ -29,7 +29,7 @@ Peaks cannot all be reached simultaneously; monitor the shared budget before inc
 Go memory targets leave room for buffers and native PDF tools.
 The sum of individual application limits is 9.5 GiB; infrastructure adds 3.15625 GiB (12.65625 GiB total).
 The aggregate hard ceilings remain 4.5 GiB plus 1.5 GiB for MongoDB, so individual maxima cannot all be used at once.
-The root-owned `/etc/cpm/prod/resources.compose.yaml` host policy keeps Auth's 1 GiB limit and 768 MiB Go target on both deployments and rollbacks. Its template is `prod/resources.compose.yaml`; immutable release bundles are not edited for runtime resource changes.
+The root-owned `/etc/cpm/prod/resources.compose.yaml` host policy keeps Auth's 1.5 GiB limit and 1152 MiB Go target on both deployments and rollbacks. Its template is `prod/resources.compose.yaml`; immutable release bundles are not edited for runtime resource changes.
 This configuration does not prove capacity for 450–700 simultaneous test takers.
 
 ## Access and recovery

@@ -11,7 +11,7 @@ services:
       AUTH_OPERATIONS_ENABLED: '1'
       AUTH_OPERATIONS_TTL_SECONDS: '21600'
       APP_ENV: production
-      GOMEMLIMIT: 768MiB
+      GOMEMLIMIT: 1152MiB
       AUTH_ISSUER: cpm-auth-prod
     read_only: true
     cap_drop:
@@ -27,7 +27,7 @@ services:
       timeout: 8s
       retries: 8
       start_period: 30s
-    mem_limit: 1g
+    mem_limit: 1536m
     logging:
       driver: json-file
       options:
@@ -36,7 +36,7 @@ services:
     networks:
     - backend
     cgroup_parent: cpm.slice
-    memswap_limit: 1g
+    memswap_limit: 1536m
     stop_grace_period: 60s
     env_file:
     - path: /etc/cpm/prod/auth.env

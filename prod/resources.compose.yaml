@@ -2,7 +2,7 @@
 # Applied to deployments and rollbacks without changing immutable release files.
 services:
   auth:
-    mem_limit: 1g
-    memswap_limit: 1g
+    mem_limit: 1536m
+    memswap_limit: 1536m
     environment:
-      GOMEMLIMIT: 768MiB
+      GOMEMLIMIT: 1152MiB
