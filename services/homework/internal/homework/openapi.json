@@ -559,11 +559,46 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Student-only numbered page mode, clamped to available pages.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Student page status; counters stay independent of this tab.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "undone",
+                "in_review",
+                "revision",
+                "done"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Student page: exact type name, or all.",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Cursor mode: existing items with workspace/has_more/next_cursor. Student page mode: items with homework_id/name/type, deadline, own submission state/flags and result; counts {all,undone,in_review,revision,done}; pagination {current_page,total_pages,total_items,items_per_page}. Limit in page mode: 1..100, default 12. Empty results have current_page=total_pages=1. Page cannot be mixed with after/account_id/type_id/published.",
             "content": {
               "application/json": {
                 "schema": {
@@ -652,7 +687,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Without page: existing cursor/workspace response. Student-only page mode: lightweight cards ordered by deadline/id, SQL counts across all status tabs under the same type/search filter, and numbered pagination. Scope is the authenticated account and selected organization/division. No per-card workspace hydration. Revision work remains included in undone, as in the existing student UI."
       },
       "post": {
         "operationId": "post_v1_homework_divisions_division_assignments",

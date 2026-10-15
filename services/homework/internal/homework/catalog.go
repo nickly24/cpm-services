@@ -146,6 +146,9 @@ func (s *Server) assignments(r *http.Request, a Actor, d int64, ref References) 
 	if a.Role != "student" && a.Role != "proctor" && !a.Can("assignments", false) {
 		return nil, 0, denied
 	}
+	if r.URL.Query().Has("page") {
+		return s.studentAssignments(r, a, d, ref)
+	}
 	limit, after, e := page(r)
 	if e != nil {
 		return nil, 0, e

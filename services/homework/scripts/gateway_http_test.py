@@ -339,7 +339,7 @@ def main():
     threading.Thread(target=mock.serve_forever, daemon=True).start()
     dep = 'http://127.0.0.1:' + str(mock.server_port)
     def sql(text):
-        res = subprocess.run(['docker', 'exec', '-i', container, 'mysql', '-uroot', '-psynthetic-local-only', '-N', 'synthetic_homework'], input=text, text=True, capture_output=True)
+        res = subprocess.run(['docker', 'exec', '-i', container, 'mysql', '--default-character-set=utf8mb4', '-uroot', '-psynthetic-local-only', '-N', 'synthetic_homework'], input=text, text=True, capture_output=True)
         if res.returncode: raise RuntimeError('synthetic SQL failed: ' + res.stderr.replace('mysql: [Warning] Using a password on the command line interface can be insecure.\n', ''))
         return res.stdout
     try:
