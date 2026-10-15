@@ -1,6 +1,7 @@
 package calculate
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -87,7 +88,10 @@ func GradeOfficial(input CalculationInput) (GradeResult, error) {
 			return result, ErrInvalidGradeInput
 		}
 		item := QuestionResult{QuestionID: id}
-		if value, answered := answers[id]; answered {
+		// Historical snapshots encode unanswered questions as JSON null.
+		// Keep their IDs, raw values and denominator intact; only regrade
+		// interprets the legacy sentinel as an unanswered, zero-point item.
+		if value, answered := answers[id]; answered && !(regrade && bytes.Equal(bytes.TrimSpace(value), []byte("null"))) {
 			feedback, err := CheckPractice(PracticeInput{Question: q, Value: value})
 			if err != nil {
 				if !regrade || !historicalRemovedOption(q, value) {

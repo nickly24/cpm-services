@@ -34,6 +34,17 @@ type remoteError struct {
 	name string
 }
 
+// A reference is carried only after the immutable input has passed the event,
+// tenant, revision and hash checks. It is never persisted as a grade output.
+type gradeInputFailure struct {
+	cause     error
+	revision  int64
+	inputHash string
+}
+
+func (e *gradeInputFailure) Error() string { return e.cause.Error() }
+func (e *gradeInputFailure) Unwrap() error { return e.cause }
+
 func (e *remoteError) Error() string { return fmt.Sprintf("tests_response_%d", e.code) }
 
 // call deliberately omits remote error text, addresses and credentials from
@@ -184,13 +195,11 @@ func (w *Worker) run(ctx context.Context, claim func(context.Context, time.Time,
 		if err != nil && m.Type == "tests.grade.requested" {
 			failedStatus, failedReason := classifyProcessError(err)
 			if failedStatus == "retrying" || failedStatus == "failed" {
-				var result CalculationResult
-				cached := output
-				if len(cached) == 0 {
-					cached = m.Output
-				}
-				if json.Unmarshal(cached, &result) == nil && result.InputHash != "" {
-					w.notifyStatus(ctx, m.SubmissionID, result, failedStatus, failedReason)
+				if notifyErr := w.notifyGradeFailure(ctx, m, output, err, failedStatus, failedReason); notifyErr != nil {
+					// A lost status callback must not leave a terminal inbox job
+					// behind a forever-processing submission. Retry delivery via
+					// the same immutable job, without inventing a grade result.
+					err = notifyErr
 				}
 			}
 		}
@@ -353,7 +362,7 @@ func (w *Worker) grade(ctx context.Context, m Message, raw json.RawMessage) (str
 		w.notifyStatus(ctx, event.SubmissionID, CalculationResult{CalculationRevision: input.CalculationRevision, InputHash: input.InputHash}, "processing", "")
 		grade, err := GradeOfficial(input)
 		if err != nil {
-			return "", "", nil, err
+			return "", "", nil, &gradeInputFailure{cause: err, revision: input.CalculationRevision, inputHash: input.InputHash}
 		}
 		result = CalculationResult{CalculationRevision: input.CalculationRevision, GradingVersionID: input.GradingVersionID, InputHash: input.InputHash, ExcludedQuestionIDs: input.ExcludedQuestionIDs, GradeResult: grade}
 		output, _ := json.Marshal(result)
@@ -368,7 +377,23 @@ func (w *Worker) grade(ctx context.Context, m Message, raw json.RawMessage) (str
 	return "ready", "", output, nil
 }
 
-func (w *Worker) notifyStatus(ctx context.Context, submissionID string, result CalculationResult, status, reason string) {
+func (w *Worker) notifyGradeFailure(ctx context.Context, m Message, output json.RawMessage, processErr error, status, reason string) error {
+	var verified *gradeInputFailure
+	if errors.As(processErr, &verified) {
+		return w.notifyStatus(ctx, m.SubmissionID, CalculationResult{CalculationRevision: verified.revision, InputHash: verified.inputHash}, status, reason)
+	}
+	// Existing durable grade outputs remain the reference for callback retries.
+	if len(output) == 0 {
+		output = m.Output
+	}
+	var result CalculationResult
+	if json.Unmarshal(output, &result) == nil && result.InputHash != "" {
+		return w.notifyStatus(ctx, m.SubmissionID, result, status, reason)
+	}
+	return nil
+}
+
+func (w *Worker) notifyStatus(ctx context.Context, submissionID string, result CalculationResult, status, reason string) error {
 	notifyCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	input := struct {
@@ -377,7 +402,7 @@ func (w *Worker) notifyStatus(ctx context.Context, submissionID string, result C
 		Status              string `json:"status"`
 		Reason              string `json:"reason"`
 	}{result.CalculationRevision, result.InputHash, status, reason}
-	_ = w.Tests.call(notifyCtx, http.MethodPost, "/internal/tests/submissions/"+submissionID+"/calculation-status", input, nil)
+	return w.Tests.call(notifyCtx, http.MethodPost, "/internal/tests/submissions/"+submissionID+"/calculation-status", input, nil)
 }
 
 func (w *Worker) content(ctx context.Context, m Message, raw json.RawMessage) (string, string, json.RawMessage, error) {
