@@ -5,6 +5,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 // Cards reads live content only after tests has authorized answer disclosure.
@@ -93,6 +95,7 @@ func (s *Server) cardsRoutes(mux *http.ServeMux) {
 			reply(w, code, Envelope{true, out})
 		}
 	}
+	mux.HandleFunc("POST /internal/tests/cards/digests", secure(s.cardsDigests))
 	mux.HandleFunc("GET /internal/tests/cards/catalog", secure(func(r *http.Request, a Actor, _ int64) (any, int, error) {
 		out := []CardsProjection{}
 		if r.URL.Query().Get("admin") == "true" && a.Role == "student" {
@@ -101,43 +104,52 @@ func (s *Server) cardsRoutes(mux *http.ServeMux) {
 		if len(cardsDivisions(a)) == 0 {
 			return out, 200, nil
 		}
-		cur, e := s.Store.Collection.Find(r.Context(), bson.M{"organization_id": a.OrganizationID, "is_archived": false, "placements.division_id": bson.M{"$in": cardsDivisions(a)}}, options.Find().SetLimit(1001).SetSort(bson.D{{Key: "_id", Value: 1}}))
+		filter := bson.M{"organization_id": a.OrganizationID, "is_archived": false, "placements.division_id": bson.M{"$in": cardsDivisions(a)}}
+		if raw := r.URL.Query().Get("direction_id"); raw != "" {
+			id, err := strconv.ParseInt(raw, 10, 64)
+			if err != nil || id < 1 {
+				return nil, 0, bad("invalid_direction")
+			}
+			filter["direction_id"] = id
+		}
+		opts := options.Find().SetLimit(1001).SetSort(bson.D{{Key: "_id", Value: 1}})
+		metadata := r.URL.Query().Get("metadata") == "true"
+		if metadata {
+			opts.SetProjection(bson.M{"_id": 1, "organization_id": 1, "direction_id": 1, "title": 1, "placements": 1, "content_version_id": 1, "is_archived": 1})
+		}
+		cur, e := s.Store.Collection.Find(r.Context(), filter, opts)
 		if e != nil {
 			return nil, 0, e
 		}
 		defer cur.Close(r.Context())
-		count := 0
+		docs := []Document{}
 		for cur.Next(r.Context()) {
-			count++
-			if count > 1000 {
+			var doc Document
+			if e = cur.Decode(&doc); e != nil {
+				return nil, 0, e
+			}
+			docs = append(docs, doc)
+			if len(docs) > 1000 {
 				return nil, 0, bad("catalog_limit_exceeded")
 			}
-			var t Document
-			if e = cur.Decode(&t); e != nil {
-				return nil, 0, e
-			}
-			if r.URL.Query().Get("admin") == "true" {
-				if a.Role == "student" {
-					return nil, 0, denied
+		}
+		if e = cur.Err(); e != nil {
+			return nil, 0, e
+		}
+		if r.URL.Query().Get("admin") != "true" {
+			projections, err := s.cardsCatalog(r, a, docs, !metadata && r.URL.Query().Get("include_questions") == "true")
+			return projections, 200, err
+		}
+		for _, t := range docs {
+			published, visible := false, false
+			for _, d := range cardsDivisions(a) {
+				if p := t.Placement(d); p != nil && p.Settings.Published {
+					published = true
+					visible = visible || p.Settings.AnswersVisible
 				}
-				published, visible := false, false
-				for _, d := range cardsDivisions(a) {
-					if p := t.Placement(d); p != nil && p.Settings.Published {
-						published = true
-						visible = visible || p.Settings.AnswersVisible
-					}
-				}
-				if published {
-					out = append(out, CardsProjection{TestID: t.ID, DirectionID: t.DirectionID, Title: t.Title, VersionID: t.ContentVersionID, CardsCount: len(t.Questions), Visible: visible})
-				}
-				continue
 			}
-			ok, e := s.cardsAllowed(r, a, t)
-			if e != nil {
-				return nil, 0, e
-			}
-			if ok {
-				out = append(out, CardsProjection{TestID: t.ID, DirectionID: t.DirectionID, Title: t.Title, VersionID: t.ContentVersionID, CardsCount: len(t.Questions), Visible: true})
+			if published {
+				out = append(out, CardsProjection{TestID: t.ID, DirectionID: t.DirectionID, Title: t.Title, VersionID: t.ContentVersionID, CardsCount: len(t.Questions), Visible: visible})
 			}
 		}
 		return out, 200, cur.Err()
@@ -180,4 +192,75 @@ func (s *Server) cardsRoutes(mux *http.ServeMux) {
 		}
 		return s.insertDraft(r, a, d, in, nil, in)
 	}))
+}
+
+// Access is fresh and request-scoped. Batch the same references and official
+// attempt states used by cardsAllowed; never cache one learner's eligibility.
+func (s *Server) cardsCatalog(r *http.Request, a Actor, docs []Document, includeQuestions bool) ([]CardsProjection, error) {
+	out := []CardsProjection{}
+	if len(docs) == 0 {
+		return out, nil
+	}
+	divisions := cardsDivisions(a)
+	directions := []int64{}
+	seen := map[int64]bool{}
+	for _, doc := range docs {
+		if doc.OrganizationID != a.OrganizationID {
+			return nil, unavailable
+		}
+		if !seen[doc.DirectionID] {
+			directions = append(directions, doc.DirectionID)
+			seen[doc.DirectionID] = true
+		}
+	}
+	refs, err := s.Dependencies.ReferencesBatch(r.Context(), a.OrganizationID, divisions, directions)
+	if err != nil {
+		return nil, err
+	}
+	activeDirections := map[int64]bool{}
+	for _, ref := range refs.Directions {
+		activeDirections[ref.ID] = ref.Active
+	}
+	allowed := map[bson.ObjectID]bool{}
+	now := time.Now()
+	for _, division := range refs.Divisions {
+		if !division.Active {
+			continue
+		}
+		candidates := []bson.ObjectID{}
+		for _, doc := range docs {
+			p := doc.Placement(division.ID)
+			if p == nil || !availability(doc, *p, activeDirections[doc.DirectionID], now).ReviewAccessAllowed {
+				continue
+			}
+			if p.Settings.EndAt != nil && now.After(*p.Settings.EndAt) {
+				allowed[doc.ID] = true
+				continue
+			}
+			candidates = append(candidates, doc.ID)
+		}
+		if len(candidates) == 0 {
+			continue
+		}
+		attempts, err := s.Store.catalogAttempts(r, a, division.ID, candidates)
+		if err != nil {
+			return nil, err
+		}
+		for id, attempt := range attempts {
+			if attempt.Status == "accepted" {
+				allowed[id] = true
+			}
+		}
+	}
+	for _, doc := range docs {
+		if !allowed[doc.ID] {
+			continue
+		}
+		item := CardsProjection{TestID: doc.ID, DirectionID: doc.DirectionID, Title: doc.Title, VersionID: doc.ContentVersionID, CardsCount: len(doc.Questions), Visible: true}
+		if includeQuestions {
+			item.Questions = doc.Questions
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }

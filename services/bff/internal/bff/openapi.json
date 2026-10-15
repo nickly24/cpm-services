@@ -19674,8 +19674,8 @@
             "in": "query",
             "name": "limit",
             "schema": {
-              "default": 6,
-              "maximum": 100,
+              "default": 12,
+              "maximum": 50,
               "minimum": 1,
               "type": "integer"
             }
@@ -19694,7 +19694,8 @@
               "enum": [
                 "all",
                 "manual",
-                "test"
+                "test",
+                "exam"
               ],
               "type": "string"
             }
@@ -19933,7 +19934,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "GET directions/{direction}/sections",
+        "summary": "Student unified manual/test/exam catalog: live owner access, stable server pagination, page-only statistics; no question/answer bodies",
         "description": " Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409."
       }
     },
@@ -74933,6 +74934,259 @@
           }
         ],
         "description": "Organization/division/actor are fixed by the live BFF session. Writes require the configured Origin. Stale context returns409. Owner permission checks remain authoritative."
+      }
+    },
+    "/bff/cards/catalog": {
+      "get": {
+        "parameters": [
+          {
+            "name": "X-CPM-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CPM-Context",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "directions"
+                      ],
+                      "properties": {
+                        "directions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "status": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful operation; writes and repeats return 200"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid DTO/filter/file"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid current session"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Permission or answer disclosure denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing, expired or foreign object"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Revision, duplicate name, fingerprint or idempotency conflict"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "JSON required"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal persistence error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Dependency unavailable; never an empty successful catalog"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Lightweight student directions without sections, questions or progress prefetch",
+        "description": " Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409."
       }
     }
   },

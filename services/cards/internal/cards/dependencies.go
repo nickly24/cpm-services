@@ -107,9 +107,16 @@ func (d *Dependencies) catalog(r *http.Request) ([]Projection, error) {
 		Status bool         `json:"status"`
 		Data   []Projection `json:"data"`
 	}
-	e := d.call(r, "GET", d.Config.TestsURL+"/internal/tests/cards/catalog", nil, &out, "")
+	e := d.call(r, "GET", d.Config.TestsURL+"/internal/tests/cards/catalog?include_questions=true", nil, &out, "")
 	if e == nil && !out.Status {
 		e = unavailable
+	}
+	if e == nil {
+		for _, p := range out.Data {
+			if p.TestID == "" || p.Version == "" || !p.Visible || len(p.Questions) != p.CardsCount {
+				return nil, unavailable
+			}
+		}
 	}
 	return out.Data, e
 }

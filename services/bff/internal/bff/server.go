@@ -457,6 +457,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, 200, map[string]any{"status": true, "data": examsCapabilities(v.identity.User)})
 		return
 	}
+
+	var cardsUser struct {
+		Role string `json:"role"`
+	}
+	_ = json.Unmarshal(v.identity.User, &cardsUser)
+	if r.Method == "GET" && cardsUser.Role == "student" && strings.HasPrefix(path, "cards/directions/") && strings.HasSuffix(path, "/sections") && cardsRoute("GET", strings.TrimPrefix(path, "cards/")) != "" {
+		s.cardsCatalogPage(w, r, path, v.identity.Access, rid, user.DivisionID)
+		return
+	}
 	base, up, entity := "", "", ""
 	if tail, ok := strings.CutPrefix(path, "homework/"); ok && hwRoutes.MatchString(r.Method+" "+tail) {
 		base = s.config.Homework

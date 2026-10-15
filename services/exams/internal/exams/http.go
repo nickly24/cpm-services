@@ -58,6 +58,8 @@ func (s *Server) Handler() http.Handler {
 		respond(w, 200, map[string]any{"service": "exams"})
 	})
 	m.HandleFunc("GET /openapi.json", serveOpenAPI)
+	m.HandleFunc("GET /v1/exams/training/catalog", s.trainingCatalog)
+	m.HandleFunc("GET /v1/exams/{exam}/training/summary", s.trainingRoute)
 	m.HandleFunc("GET /v1/exams", s.catalog)
 	m.HandleFunc("POST /v1/exams", s.newExam)
 	m.HandleFunc("GET /internal/exams/rating-snapshot", s.snapshot)

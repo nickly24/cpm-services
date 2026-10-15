@@ -49,7 +49,7 @@ func TestCardsCoreOpenAPIPublicBoundary(t *testing.T) {
 			}
 		}
 	}
-	if cardsCount != 19 || coreCount < 30 {
+	if cardsCount != 20 || coreCount < 30 {
 		t.Fatalf("incomplete public cards/core contract: cards=%d core=%d", cardsCount, coreCount)
 	}
 	for _, path := range []string{"/bff/cards/imports/parse", "/bff/cards/imports/targets", "/bff/core/divisions/{division}/imports", "/bff/core/schedule"} {

@@ -12,7 +12,7 @@ const cardsSession = `sessions/[a-f0-9]{32}`
 
 // Imports belong to the excluded Upload screen. Sessions here support the
 // existing card-to-test transformation; each owner also checks its creator.
-var cardsRoutes = regexp.MustCompile(`^(GET (admin/catalog|tree|directions/` + cardsID + `/sections|` + cardsSection + `(/batches/[0-9]{1,6})?|themes/` + cardsID + `/cards|` + cardsSession + `)|POST (themes|themes/` + cardsID + `/cards|` + cardsSection + `/learned|transforms|` + cardsSession + `/commit)|PUT (themes/` + cardsID + `|themes/` + cardsID + `/cards/` + cardsID + `|` + cardsSection + `/settings|` + cardsSession + `)|DELETE (themes/` + cardsID + `|themes/` + cardsID + `/cards/` + cardsID + `|` + cardsSection + `/learned))$`)
+var cardsRoutes = regexp.MustCompile(`^(GET (admin/catalog|catalog|tree|directions/` + cardsID + `/sections|` + cardsSection + `(/batches/[0-9]{1,6})?|themes/` + cardsID + `/cards|` + cardsSession + `)|POST (themes|themes/` + cardsID + `/cards|` + cardsSection + `/learned|transforms|` + cardsSession + `/commit)|PUT (themes/` + cardsID + `|themes/` + cardsID + `/cards/` + cardsID + `|` + cardsSection + `/settings|` + cardsSession + `)|DELETE (themes/` + cardsID + `|themes/` + cardsID + `/cards/` + cardsID + `|` + cardsSection + `/learned))$`)
 
 func cardsRoute(method, tail string) string {
 	if !cardsRoutes.MatchString(method + " " + tail) {

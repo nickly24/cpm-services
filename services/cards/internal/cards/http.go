@@ -85,6 +85,9 @@ type route struct {
 func (s *Server) routes() []route {
 	return []route{
 		{"GET /v1/cards/admin/catalog", s.adminCatalog, nil},
+		{"GET /v1/cards/catalog", s.catalogDirections, nil},
+		{"GET /v1/cards/directions/{direction}/catalog", s.catalogMetadata, nil},
+		{"POST /v1/cards/catalog/stats", s.catalogStats, CatalogStatsRequest{}},
 		{"GET /v1/cards/tree", s.tree, nil}, {"GET /v1/cards/directions/{direction}/sections", s.sections, nil},
 		{"GET /v1/cards/sections/{kind}/{section}", s.study, nil}, {"GET /v1/cards/sections/{kind}/{section}/batches/{batch}", s.batch, nil},
 		{"PUT /v1/cards/sections/{kind}/{section}/settings", s.settings, Settings{}}, {"POST /v1/cards/sections/{kind}/{section}/learned", s.mark, MarkDTO{}}, {"DELETE /v1/cards/sections/{kind}/{section}/learned", s.unmark, MarkDTO{}},

@@ -46,13 +46,7 @@ func (s *Server) loadView(r *http.Request, a Actor, scope Scope, kind, ref strin
 		v.Name = p.Title
 		v.Version = p.Version
 		v.DirectionID = p.DirectionID
-		sort.Slice(p.Questions, func(i, j int) bool { return p.Questions[i].ID < p.Questions[j].ID })
-		for _, q := range p.Questions {
-			ans := answer(q)
-			if strings.TrimSpace(q.Text) != "" && ans != "" {
-				v.Cards = append(v.Cards, Card{QuestionID: q.ID, Ref: fmt.Sprintf("test:%s:%d", ref, q.ID), Question: q.Text, Answer: ans, Order: q.ID, Fingerprint: fingerprint(q.Text, ans), Status: "unlearned"})
-			}
-		}
+		v.Cards = projectionCards(p)
 	default:
 		return v, bad("unsupported_section_kind")
 	}
@@ -247,15 +241,27 @@ func (s *Server) nodes(r *http.Request, a Actor, scope Scope) ([]Node, error) {
 	if e != nil {
 		return nil, e
 	}
+	progress := map[string]map[string]string{}
+	if len(tests) > 0 {
+		progress, e = s.catalogTestProgress(r, a)
+		if e != nil {
+			return nil, e
+		}
+	}
 	for _, t := range tests {
 		if !scope.Allows(t.DirectionID) {
 			continue
 		}
-		v, e := s.loadView(r, a, scope, "test", t.TestID)
-		if e != nil {
-			return nil, e
+		cards := projectionCards(t)
+		for i := range cards {
+			if previous, ok := progress[t.TestID][cards[i].Ref]; ok {
+				cards[i].Status = "answer_changed"
+				if previous == cards[i].Fingerprint {
+					cards[i].Status = "learned"
+				}
+			}
 		}
-		out = append(out, Node{"test", v.Ref, v.Name, t.DirectionID, v.Stats})
+		out = append(out, Node{"test", t.TestID, t.Title, t.DirectionID, stats(cards)})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
 	return out, nil
@@ -388,4 +394,38 @@ func (s *Server) adminCatalog(r *http.Request, a Actor, scope Scope) (any, error
 		directions = append(directions, map[string]any{"id": d.ID, "name": d.Name, "sections": sections, "topics_count": len(sections), "cards_count": count})
 	}
 	return map[string]any{"directions": directions}, nil
+}
+
+func projectionCards(p Projection) []Card {
+	out := []Card{}
+	sort.Slice(p.Questions, func(i, j int) bool { return p.Questions[i].ID < p.Questions[j].ID })
+	for _, q := range p.Questions {
+		ans := answer(q)
+		if strings.TrimSpace(q.Text) != "" && ans != "" {
+			out = append(out, Card{QuestionID: q.ID, Ref: fmt.Sprintf("test:%s:%d", p.TestID, q.ID), Question: q.Text, Answer: ans, Order: q.ID, Fingerprint: fingerprint(q.Text, ans), Status: "unlearned"})
+		}
+	}
+	return out
+}
+
+// Catalog needs statistics, not per-section study settings. Read the learner's
+// test progress once, using exactly the same account/organization keys as study.
+func (s *Server) catalogTestProgress(r *http.Request, a Actor) (map[string]map[string]string, error) {
+	rows, err := s.DB.QueryContext(r.Context(), "SELECT section_ref,card_ref,fingerprint FROM cards_progress_v1 WHERE account_id=? AND organization_id=? AND section_kind='test'", a.AccountID, a.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]map[string]string{}
+	for rows.Next() {
+		var section, ref, fp string
+		if err = rows.Scan(&section, &ref, &fp); err != nil {
+			return nil, err
+		}
+		if out[section] == nil {
+			out[section] = map[string]string{}
+		}
+		out[section][ref] = fp
+	}
+	return out, rows.Err()
 }

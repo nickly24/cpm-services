@@ -570,6 +570,12 @@ func (s *Server) trainingRoute(w http.ResponseWriter, r *http.Request) {
 			failure(w, er)
 			return
 		}
+
+		if strings.HasSuffix(r.URL.Path, "/training/summary") {
+			value := out.(map[string]any)
+			respond(w, 200, map[string]any{"kind": "exam", "refId": strconv.FormatInt(id, 10), "stats": value["stats"]})
+			return
+		}
 		respond(w, 200, out)
 		return
 	}
