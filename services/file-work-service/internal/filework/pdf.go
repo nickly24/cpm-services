@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 type Rejected struct{ Code string }
@@ -153,7 +154,8 @@ func dangerousContent(v any, allowAttachments bool) bool {
 	switch x := v.(type) {
 	case map[string]any:
 		for key, value := range x {
-			if dangerousKeys[key] && !(allowAttachments && attachmentKeys[key]) {
+			passive := attachmentKeys[key] || (key == "/OpenAction" && localOpenDestination(value))
+			if dangerousKeys[key] && !(allowAttachments && passive) {
 				return true
 			}
 			if key == "/S" || key == "/Type" || key == "/Subtype" {
@@ -173,6 +175,42 @@ func dangerousContent(v any, allowAttachments bool) bool {
 		}
 	}
 	return false
+}
+
+// PDF destination arrays only select a local page/view; they are not actions.
+// Accept the standard explicit forms for removal, with bounded numeric/null
+// coordinates. Action dictionaries and named/remote destinations stay rejected.
+func localOpenDestination(v any) bool {
+	a, ok := v.([]any)
+	if !ok || len(a) < 2 || len(a) > 6 {
+		return false
+	}
+	ref, ok := a[0].(string)
+	if !ok {
+		return false
+	}
+	parts := strings.Fields(ref)
+	if len(parts) != 3 || parts[2] != "R" {
+		return false
+	}
+	object, e1 := strconv.Atoi(parts[0])
+	generation, e2 := strconv.Atoi(parts[1])
+	if e1 != nil || e2 != nil || object <= 0 || generation < 0 {
+		return false
+	}
+	mode, _ := a[1].(string)
+	lengths := map[string]int{"/XYZ": 5, "/Fit": 2, "/FitH": 3, "/FitV": 3, "/FitR": 6, "/FitB": 2, "/FitBH": 3, "/FitBV": 3}
+	if lengths[mode] != len(a) {
+		return false
+	}
+	for _, coordinate := range a[2:] {
+		if coordinate != nil {
+			if _, ok := coordinate.(float64); !ok {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // Discard attachments rather than treating their presence as an infection.
@@ -200,7 +238,7 @@ func removeAttachmentReferences(v any) {
 	switch x := v.(type) {
 	case map[string]any:
 		for key, value := range x {
-			if attachmentKeys[key] {
+			if attachmentKeys[key] || (key == "/OpenAction" && localOpenDestination(value)) {
 				delete(x, key)
 			} else {
 				removeAttachmentReferences(value)
@@ -271,7 +309,8 @@ func (p PDFCompressor) Compress(ctx context.Context, source, dir string, limits 
 	}
 	if dangerous(originalDoc["qpdf"]) {
 		// The input policy has already rejected scripts/actions. The remaining
-		// strict-policy flags are attachment markers; remove them before rendering.
+		// strict-policy flags are attachments or a passive local opening view;
+		// remove them before rendering.
 		clean := filepath.Join(dir, "input-clean.pdf")
 		removeAttachments(originalDoc)
 		if err = p.sanitize(ctx, source, clean, originalDoc); err != nil {

@@ -23,9 +23,18 @@ func TestAttachmentPolicyStillRejectsActions(t *testing.T) {
 			}
 		}
 	}
+	local := map[string]any{"/OpenAction": []any{"4 0 R", "/FitH", nil}}
+	if !dangerous(local) || dangerousContent(local, true) {
+		t.Fatal("local opening view not accepted for removal")
+	}
+	for _, value := range []any{map[string]any{"/S": "/JavaScript", "/JS": "script"}, []any{"4 0 R", "/FitH", map[string]any{"/S": "/Launch"}}, []any{"4 0 R", "/JavaScript"}} {
+		if !dangerousContent(map[string]any{"/OpenAction": value}, true) {
+			t.Fatal("non-local opening action allowed")
+		}
+	}
 }
 
-func attachmentFixture(t *testing.T, path string, large, orphan, scripted bool) {
+func attachmentFixture(t *testing.T, path string, large, orphan, scripted, localOpen bool) {
 	t.Helper()
 	content := "BT /F1 18 Tf 72 740 Td (Homework attachment text 12345) Tj ET\n"
 	if large {
@@ -33,6 +42,9 @@ func attachmentFixture(t *testing.T, path string, large, orphan, scripted bool) 
 	}
 	payload := `{"type":"Document","usedOnDeviceOCR":true,"private_attachment_marker":"removed"}`
 	root := "<< /Type /Catalog /Pages 2 0 R"
+	if localOpen {
+		root += " /OpenAction [4 0 R /FitH null]"
+	}
 	if !orphan {
 		root += " /AF [6 0 R] /Names << /EmbeddedFiles << /Names [(scan.json) 6 0 R] >> >>"
 	}
@@ -42,7 +54,12 @@ func attachmentFixture(t *testing.T, path string, large, orphan, scripted bool) 
 		fileSpec += " /AA << /O << /S /JavaScript /JS (app.alert(1)) >> >>"
 	}
 	fileSpec += " >>"
-	objects := []string{root, "<< /Type /Pages /Count 1 /Kids [4 0 R] >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R /Annots [8 0 R] >>", fmt.Sprintf("<< /Length %d >>\nstream\n%sendstream", len(content), content), fileSpec, fmt.Sprintf("<< /Type /EmbeddedFile /Subtype /application#2fjson /Length %d >>\nstream\n%sendstream", len(payload), payload), "<< /Type /Annot /Subtype /FileAttachment /Rect [10 10 20 20] /FS 6 0 R >>"}
+	page := "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R"
+	if !orphan {
+		page += " /Annots [8 0 R]"
+	}
+	page += " >>"
+	objects := []string{root, "<< /Type /Pages /Count 1 /Kids [4 0 R] >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", page, fmt.Sprintf("<< /Length %d >>\nstream\n%sendstream", len(content), content), fileSpec, fmt.Sprintf("<< /Type /EmbeddedFile /Subtype /application#2fjson /Length %d >>\nstream\n%sendstream", len(payload), payload), "<< /Type /Annot /Subtype /FileAttachment /Rect [10 10 20 20] /FS 6 0 R >>"}
 	var pdf bytes.Buffer
 	pdf.WriteString("%PDF-1.6\n")
 	offsets := []int{0}
@@ -64,12 +81,12 @@ func attachmentFixture(t *testing.T, path string, large, orphan, scripted bool) 
 func TestRealPDFAttachmentsAreRemovedBeforeRenderingAndFallback(t *testing.T) {
 	p := realPDFTools(t)
 	for _, tc := range []struct {
-		name                  string
-		large, orphan, script bool
-	}{{"text-fallback", false, false, false}, {"compressed", true, false, false}, {"orphan-stream", false, true, false}, {"script-still-rejected", false, false, true}} {
+		name                             string
+		large, orphan, script, localOpen bool
+	}{{"text-fallback", false, false, false, false}, {"compressed", true, false, false, false}, {"orphan-stream", false, true, false, false}, {"script-still-rejected", false, false, true, false}, {"local-opening-view", false, false, false, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			source := filepath.Join(t.TempDir(), "source.pdf")
-			attachmentFixture(t, source, tc.large, tc.orphan, tc.script)
+			attachmentFixture(t, source, tc.large, tc.orphan, tc.script, tc.localOpen)
 			original, _ := os.ReadFile(source)
 			ctx := context.Background()
 			artifact, err := p.Compress(ctx, source, t.TempDir(), validCommand().Limits)
