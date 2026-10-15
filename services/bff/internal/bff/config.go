@@ -82,6 +82,10 @@ func LoadConfig() (Config, string, error) {
 		c.RedisAddress = "127.0.0.1:6379"
 	}
 	c.RedisPassword = os.Getenv("BFF_REDIS_PASSWORD")
+	c.HomeworkGatewayKey = os.Getenv("BFF_HOMEWORK_CONTEXT_KEY")
+	if c.HomeworkGatewayKey != "" && (len(c.HomeworkGatewayKey) < 32 || c.HomeworkGatewayKey == os.Getenv("BFF_TESTS_CONTEXT_KEY")) {
+		return c, "", errors.New("invalid Homework gateway credential")
+	}
 	c.GatewayKey = os.Getenv("BFF_TESTS_CONTEXT_KEY")
 	if c.GatewayKey != "" && len(c.GatewayKey) < 32 {
 		return c, "", errors.New("invalid gateway credential")

@@ -24,7 +24,7 @@ type Config struct {
 	AllowedOrigins                                                                  []string
 	Secure                                                                          bool
 	RedisAddress, RedisPassword                                                     string
-	GatewayKey                                                                      string
+	GatewayKey, HomeworkGatewayKey                                                  string
 }
 type Identity struct {
 	User          json.RawMessage `json:"user"`
@@ -372,7 +372,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var data []byte
 	var retryAfter string
 	// Context/logout authenticate inside Auth themselves. Other browser operations
-	// still obtain live permissions once; Tests reuse that signed request context.
+	// still obtain live permissions once; Tests/Homework reuse the signed context.
 	if !(r.Method == "POST" && (path == "auth/context" || path == "auth/logout")) {
 		// No permission cache: each browser operation sees current auth state.
 		code, data, retryAfter = s.callResponse(ctx, s.config.Auth, "GET", "/v1/auth/me", v.identity.Access, nil, rid)

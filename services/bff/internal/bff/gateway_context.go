@@ -33,22 +33,29 @@ type gatewayClaims struct {
 }
 
 func (s *Server) attachGatewayContext(r *http.Request, body []byte) error {
-	if s.config.GatewayKey == "" || s.config.Tests == "" || r.URL.Scheme+"://"+r.URL.Host != s.config.Tests {
+	key, audience := "", ""
+	base := r.URL.Scheme + "://" + r.URL.Host
+	if s.config.Tests != "" && base == s.config.Tests {
+		key, audience = s.config.GatewayKey, "tests"
+	} else if s.config.Homework != "" && base == s.config.Homework {
+		key, audience = s.config.HomeworkGatewayKey, "homework"
+	}
+	if key == "" {
 		return nil
 	}
 	user, ok := r.Context().Value(gatewayIdentityKey{}).(json.RawMessage)
-	if !ok || !json.Valid(user) || len(user) > 8192 || len(s.config.GatewayKey) < 32 {
+	if !ok || !json.Valid(user) || len(user) > 8192 || len(key) < 32 {
 		return errors.New("gateway context unavailable")
 	}
 	now := time.Now().UTC().Unix()
 	hash := sha256.Sum256(body)
-	claims := gatewayClaims{Version: 1, Issuer: "cpm-bff", Audience: "tests", IssuedAt: now, ExpiresAt: now + 30, Method: r.Method, URI: r.URL.RequestURI(), BodyHash: hex.EncodeToString(hash[:]), User: user}
+	claims := gatewayClaims{Version: 1, Issuer: "cpm-bff", Audience: audience, IssuedAt: now, ExpiresAt: now + 30, Method: r.Method, URI: r.URL.RequestURI(), BodyHash: hex.EncodeToString(hash[:]), User: user}
 	raw, err := json.Marshal(claims)
 	if err != nil {
 		return errors.New("gateway context unavailable")
 	}
 	encoded := base64.RawURLEncoding.EncodeToString(raw)
-	mac := hmac.New(sha256.New, []byte(s.config.GatewayKey))
+	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(encoded))
 	r.Header.Set("X-CPM-Gateway-Context", encoded)
 	r.Header.Set("X-CPM-Gateway-Signature", base64.RawURLEncoding.EncodeToString(mac.Sum(nil)))

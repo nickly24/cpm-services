@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-type Config struct{ Listen, DSN, AuthURL, CoreURL, CoreKey, Key, RabbitURL, S3Endpoint, S3PublicEndpoint, S3Region, S3Bucket, S3Access, S3Secret string }
+type Config struct{ Listen, DSN, AuthURL, CoreURL, CoreKey, Key, RabbitURL, S3Endpoint, S3PublicEndpoint, S3Region, S3Bucket, S3Access, S3Secret, GatewayKey string }
 
 func LoadConfig() (Config, error) {
-	c := Config{Listen: os.Getenv("HOMEWORK_LISTEN_ADDR"), AuthURL: os.Getenv("HOMEWORK_AUTH_URL"), CoreURL: os.Getenv("HOMEWORK_CORE_URL"), CoreKey: os.Getenv("AUTH_INTERNAL_KEY"), Key: os.Getenv("HOMEWORK_SERVICE_KEY"), RabbitURL: os.Getenv("RABBITMQ_URL"), S3Endpoint: os.Getenv("S3_ENDPOINT_URL"), S3PublicEndpoint: os.Getenv("S3_PUBLIC_ENDPOINT_URL"), S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), S3Access: os.Getenv("S3_ACCESS_KEY_ID"), S3Secret: os.Getenv("S3_SECRET_ACCESS_KEY")}
+	c := Config{GatewayKey: os.Getenv("BFF_HOMEWORK_CONTEXT_KEY"), Listen: os.Getenv("HOMEWORK_LISTEN_ADDR"), AuthURL: os.Getenv("HOMEWORK_AUTH_URL"), CoreURL: os.Getenv("HOMEWORK_CORE_URL"), CoreKey: os.Getenv("AUTH_INTERNAL_KEY"), Key: os.Getenv("HOMEWORK_SERVICE_KEY"), RabbitURL: os.Getenv("RABBITMQ_URL"), S3Endpoint: os.Getenv("S3_ENDPOINT_URL"), S3PublicEndpoint: os.Getenv("S3_PUBLIC_ENDPOINT_URL"), S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), S3Access: os.Getenv("S3_ACCESS_KEY_ID"), S3Secret: os.Getenv("S3_SECRET_ACCESS_KEY")}
 	if c.Listen == "" {
 		c.Listen = "127.0.0.1:8006"
 	}
@@ -25,6 +25,9 @@ func LoadConfig() (Config, error) {
 		if strings.TrimSpace(v) == "" {
 			return c, errors.New("missing required configuration")
 		}
+	}
+	if c.GatewayKey != "" && (len(c.GatewayKey) < 32 || c.GatewayKey == c.Key || c.GatewayKey == c.CoreKey || c.GatewayKey == os.Getenv("BFF_TESTS_CONTEXT_KEY")) {
+		return c, errors.New("invalid Homework gateway credential")
 	}
 	if len(c.Key) < 32 || len(c.CoreKey) < 32 {
 		return c, errors.New("service key too short")

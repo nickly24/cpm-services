@@ -1,4 +1,4 @@
-# BFF → Tests request identity
+# BFF → Tests / Homework request identity
 
 Browser test requests perform one live Auth `/v1/auth/me` check at the BFF. With
 `BFF_TESTS_CONTEXT_KEY` configured on both services, BFF signs the verified user
@@ -37,3 +37,37 @@ Trusted assertions are for authenticated private service transport. Production
 must keep this credential private and isolate/encrypt service traffic. In-flight
 requests retain the identity checked at entry; subsequent browser requests see
 revocation and cabinet changes through the live Auth check.
+
+## Homework
+
+`BFF_HOMEWORK_CONTEXT_KEY` enables the same envelope with audience `homework`.
+Set one dedicated random secret (at least 32 bytes) in the private environment of
+both BFF and Homework. It must differ from `BFF_TESTS_CONTEXT_KEY`,
+`AUTH_INTERNAL_KEY` and `HOMEWORK_SERVICE_KEY`. No key value belongs in Git.
+Homework validates the current Auth UserDTO, preserves its permissions and
+account/profile distinction, and rejects inconsistent organisation-admin flags.
+Unknown envelope/user/permission fields and duplicate JSON keys are rejected.
+An absent key leaves native bearer calls working; any partial, duplicate,
+unconfigured or invalid assertion returns 401 without bearer fallback.
+
+Every Homework browser method is signed after its live BFF `/me` check; incoming
+browser assertion/identity headers are not forwarded. Core homework-references
+continues to validate organisation/division and supply current members/groups.
+Existing method permissions, object tenant checks, authorship, proctor group,
+private draft/file visibility and workflow rules remain at Homework. No rights
+are cached across requests. Auth context/logout retain their existing flow.
+
+Homework requests already have a 1 MiB JSON limit in both BFF and Homework.
+The verifier reads at most that limit plus one byte, restores the exact body,
+and rejects overflow. Homework has no multipart/PDF byte upload route: allowed
+PDFs up to 100 MiB use a direct presigned S3 POST; completion and file-url are
+small signed API metadata requests. No limit or stream contract is changed.
+
+For a future coordinated release, first ship the new Homework with its private
+key while BFF still uses the native path, then enable the matching BFF version
+and key. To disable the optimisation, stop BFF signing first; direct bearer
+introspection remains available. A key mismatch fails closed. Existing Dev
+`gateway-prepare` provisions only the Tests credential; Homework's independent
+key must be supplied separately through private environment/configuration.
+Production release, credential provisioning and restart have not been performed
+by this local change.

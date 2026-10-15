@@ -11,14 +11,17 @@ import (
 )
 
 type Dependencies struct {
-	AuthURL, CoreURL, Key string
-	HTTP                  *http.Client
+	AuthURL, CoreURL, Key, GatewayKey string
+	HTTP                              *http.Client
 }
 
 func NewDependencies(c Config) *Dependencies {
-	return &Dependencies{c.AuthURL, c.CoreURL, c.CoreKey, &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	return &Dependencies{AuthURL: c.AuthURL, CoreURL: c.CoreURL, Key: c.CoreKey, GatewayKey: c.GatewayKey, HTTP: &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 func (d *Dependencies) Identify(r *http.Request) (Actor, error) {
+	if actor, present, err := d.gatewayActor(r); present {
+		return actor, err
+	}
 	p := strings.Fields(r.Header.Get("Authorization"))
 	if len(p) != 2 || !strings.EqualFold(p[0], "Bearer") {
 		return Actor{}, &APIError{401, "invalid_token"}

@@ -94,3 +94,50 @@ func TestTestsRequestUsesOneEntryAuthAndSignedOwnerScope(t *testing.T) {
 		t.Fatalf("one browser write multiplied calls: status=%d auth=%d owner=%d body=%s", w.Code, authCalls.Load(), ownerCalls.Load(), w.Body.String())
 	}
 }
+
+func TestHomeworkAudienceAndIndependentCredential(t *testing.T) {
+	homeworkKey := strings.Repeat("homework-synthetic", 3)
+	testsKey := strings.Repeat("tests-synthetic", 3)
+	s := New(Config{Tests: "http://tests.local", Homework: "http://homework.local", GatewayKey: testsKey, HomeworkGatewayKey: homeworkKey})
+	user := json.RawMessage(`{"account_id":7,"organization_id":1,"division_id":2,"role":"student"}`)
+	for _, c := range []struct{ base, audience, key string }{{s.config.Tests, "tests", testsKey}, {s.config.Homework, "homework", homeworkKey}} {
+		r := httptest.NewRequest("POST", c.base+"/route?x=1", strings.NewReader(`{}`))
+		r = r.WithContext(withGatewayIdentity(r.Context(), user))
+		if err := s.attachGatewayContext(r, []byte(`{}`)); err != nil {
+			t.Fatal(err)
+		}
+		encoded := r.Header.Get("X-CPM-Gateway-Context")
+		raw, _ := base64.RawURLEncoding.DecodeString(encoded)
+		var claims gatewayClaims
+		json.Unmarshal(raw, &claims)
+		sig, _ := base64.RawURLEncoding.DecodeString(r.Header.Get("X-CPM-Gateway-Signature"))
+		mac := hmac.New(sha256.New, []byte(c.key))
+		mac.Write([]byte(encoded))
+		if claims.Audience != c.audience || !hmac.Equal(sig, mac.Sum(nil)) {
+			t.Fatal("audience/key crossed service boundary")
+		}
+	}
+	r := httptest.NewRequest("GET", s.config.Homework+"/v1/homework/divisions/2/assignments", nil)
+	if err := s.attachGatewayContext(r, nil); err == nil {
+		t.Fatal("Homework signed without this request's live identity")
+	}
+	s.config.HomeworkGatewayKey = ""
+	if err := s.attachGatewayContext(r, nil); err != nil || r.Header.Get("X-CPM-Gateway-Context") != "" {
+		t.Fatal("optional-key native path regressed")
+	}
+}
+
+func TestHomeworkGatewayConfiguration(t *testing.T) {
+	t.Setenv("APP_ENV", "")
+	t.Setenv("BFF_TESTS_CONTEXT_KEY", strings.Repeat("t", 32))
+	for _, c := range []struct {
+		key   string
+		valid bool
+	}{{"", true}, {"short", false}, {strings.Repeat("t", 32), false}, {strings.Repeat("h", 32), true}} {
+		t.Setenv("BFF_HOMEWORK_CONTEXT_KEY", c.key)
+		_, _, err := LoadConfig()
+		if (err == nil) != c.valid {
+			t.Fatal("Homework key validation", err)
+		}
+	}
+}
