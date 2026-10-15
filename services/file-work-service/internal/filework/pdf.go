@@ -90,6 +90,10 @@ func (p PDFCompressor) runner() Runner {
 }
 
 func (p PDFCompressor) inspect(ctx context.Context, path string, maxPages int) (int, map[string]any, error) {
+	return p.inspectPolicy(ctx, path, maxPages, false)
+}
+
+func (p PDFCompressor) inspectPolicy(ctx context.Context, path string, maxPages int, allowAttachments bool) (int, map[string]any, error) {
 	// is-encrypted returns 0 for every encrypted PDF, including files with an
 	// empty user password. JSON alone cannot inspect password-protected files.
 	_, encryptedErr := p.runner().Run(ctx, p.QPDF, "--is-encrypted", path)
@@ -131,7 +135,7 @@ func (p PDFCompressor) inspect(ctx context.Context, path string, maxPages int) (
 	if !ok || len(q) != 2 {
 		return 0, nil, reject("corrupt_pdf")
 	}
-	if dangerous(q[1]) {
+	if dangerousContent(q[1], allowAttachments) {
 		return 0, nil, reject("active_content")
 	}
 	return len(pages), doc, nil
@@ -139,31 +143,74 @@ func (p PDFCompressor) inspect(ctx context.Context, path string, maxPages int) (
 
 var dangerousKeys = map[string]bool{"/JS": true, "/JavaScript": true, "/Launch": true, "/RichMedia": true, "/EmbeddedFile": true, "/EmbeddedFiles": true, "/EF": true, "/AF": true, "/AA": true, "/OpenAction": true, "/SubmitForm": true, "/ImportData": true, "/Movie": true, "/Sound": true, "/3D": true, "/Rendition": true, "/XFA": true}
 var dangerousActions = map[string]bool{"/JavaScript": true, "/Launch": true, "/GoToR": true, "/SubmitForm": true, "/ImportData": true, "/Movie": true, "/Sound": true, "/Rendition": true}
+var attachmentKeys = map[string]bool{"/EmbeddedFile": true, "/EmbeddedFiles": true, "/EF": true, "/AF": true}
 
 func dangerous(v any) bool {
+	return dangerousContent(v, false)
+}
+
+func dangerousContent(v any, allowAttachments bool) bool {
 	switch x := v.(type) {
 	case map[string]any:
 		for key, value := range x {
-			if dangerousKeys[key] {
+			if dangerousKeys[key] && !(allowAttachments && attachmentKeys[key]) {
 				return true
 			}
 			if key == "/S" || key == "/Type" || key == "/Subtype" {
-				if s, ok := value.(string); ok && (dangerousActions[s] || dangerousKeys[s]) {
+				if s, ok := value.(string); ok && (dangerousActions[s] || (dangerousKeys[s] && !(allowAttachments && attachmentKeys[s]))) {
 					return true
 				}
 			}
-			if dangerous(value) {
+			if dangerousContent(value, allowAttachments) {
 				return true
 			}
 		}
 	case []any:
 		for _, value := range x {
-			if dangerous(value) {
+			if dangerousContent(value, allowAttachments) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// Discard attachments rather than treating their presence as an infection.
+// Replace embedded streams themselves, including orphaned objects, so neither
+// Ghostscript nor a structural fallback can preserve their payloads.
+func removeAttachments(doc map[string]any) {
+	q, _ := doc["qpdf"].([]any)
+	if len(q) != 2 {
+		return
+	}
+	objects, _ := q[1].(map[string]any)
+	for id, object := range objects {
+		obj, _ := object.(map[string]any)
+		dict, _ := obj["value"].(map[string]any)
+		stream, _ := obj["stream"].(map[string]any)
+		streamDict, _ := stream["dict"].(map[string]any)
+		if dict["/Type"] == "/Filespec" || dict["/Subtype"] == "/FileAttachment" || streamDict["/Type"] == "/EmbeddedFile" {
+			objects[id] = map[string]any{"value": nil}
+		}
+	}
+	removeAttachmentReferences(q)
+}
+
+func removeAttachmentReferences(v any) {
+	switch x := v.(type) {
+	case map[string]any:
+		for key, value := range x {
+			if attachmentKeys[key] {
+				delete(x, key)
+			} else {
+				removeAttachmentReferences(value)
+			}
+		}
+	case []any:
+		for _, value := range x {
+			removeAttachmentReferences(value)
+		}
+	}
 }
 
 func removeMetadata(v any) {
@@ -218,9 +265,26 @@ func (p PDFCompressor) Compress(ctx context.Context, source, dir string, limits 
 	if readErr != nil || string(sig) != "%PDF-" {
 		return artifact, reject("invalid_pdf_signature")
 	}
-	pages, originalDoc, err := p.inspect(ctx, source, limits.MaxPages)
+	pages, originalDoc, err := p.inspectPolicy(ctx, source, limits.MaxPages, true)
 	if err != nil {
 		return artifact, err
+	}
+	if dangerous(originalDoc["qpdf"]) {
+		// The input policy has already rejected scripts/actions. The remaining
+		// strict-policy flags are attachment markers; remove them before rendering.
+		clean := filepath.Join(dir, "input-clean.pdf")
+		removeAttachments(originalDoc)
+		if err = p.sanitize(ctx, source, clean, originalDoc); err != nil {
+			return artifact, err
+		}
+		cleanPages, cleanDoc, cleanErr := p.inspect(ctx, clean, limits.MaxPages)
+		if cleanErr != nil {
+			return artifact, cleanErr
+		}
+		if cleanPages != pages {
+			return artifact, reject("page_count_changed")
+		}
+		source, originalDoc = clean, cleanDoc
 	}
 	compressed := filepath.Join(dir, "compressed.pdf")
 	args := []string{"-dSAFER", "-dBATCH", "-dNOPAUSE", "-dQUIET", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.6", "-dAutoRotatePages=/None", "-dDetectDuplicateImages=true", "-dCompressFonts=true", "-dSubsetFonts=true", "-dEmbedAllFonts=true", "-dPreserveAnnots=true", "-dPreserveMarkedContent=true", "-dPreserveDocumentProperties=false", "-dPassThroughJPEGImages=false", "-dPassThroughJPXImages=false", "-dAutoFilterColorImages=false", "-dColorImageFilter=/DCTEncode", "-dAutoFilterGrayImages=false", "-dGrayImageFilter=/DCTEncode", "-dDownsampleColorImages=true", "-dColorImageDownsampleType=/Bicubic", "-dColorImageDownsampleThreshold=1.0", "-dColorImageResolution=" + strconv.Itoa(limits.DPI), "-dDownsampleGrayImages=true", "-dGrayImageDownsampleType=/Bicubic", "-dGrayImageDownsampleThreshold=1.0", "-dGrayImageResolution=" + strconv.Itoa(limits.DPI), "-dDownsampleMonoImages=true", "-dMonoImageResolution=" + strconv.Itoa(limits.DPI*2), "-sOutputFile=" + compressed, "-c", jpegDistillerParams(limits.JPEGQuality), "-f", source}
