@@ -61,10 +61,10 @@ func (s *Server) publication(r *http.Request, tx *sql.Tx, a Actor, d int64, snap
 	return scanJob(tx.QueryRowContext(r.Context(), "SELECT "+columns+" FROM ratings_jobs_v1 WHERE id=? AND organization_id=? AND division_id=? AND status='completed'", id, a.OrganizationID, d))
 }
 
-const tableSearch = `(?='' OR LOCATE(?,LOWER(CONCAT_WS('\n',
+const tableSearch = `(?='' OR LOCATE(CAST(? AS BINARY),CAST(LOWER(CONCAT_WS('\n',
  JSON_UNQUOTE(JSON_EXTRACT(profile,'$.full_name')),
  NULLIF(JSON_UNQUOTE(JSON_EXTRACT(profile,'$.group_name')),'null'),
- NULLIF(JSON_UNQUOTE(JSON_EXTRACT(profile,'$.class')),'null'),CAST(account_id AS CHAR))))>0)`
+ NULLIF(JSON_UNQUOTE(JSON_EXTRACT(profile,'$.class')),'null'),CAST(account_id AS CHAR))) AS BINARY))>0)`
 
 const tableProjection = `JSON_OBJECT(
  'job_id',JSON_EXTRACT(output,'$.job_id'),'revision',JSON_EXTRACT(output,'$.revision'),
