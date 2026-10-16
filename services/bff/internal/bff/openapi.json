@@ -75188,6 +75188,323 @@
         "summary": "Lightweight student directions without sections, questions or progress prefetch",
         "description": " Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409."
       }
+    },
+    "/bff/ratings/table": {
+      "get": {
+        "description": "SQL page of persisted summary scores; no per-work details or live freshness wait. Requires ratings.view or supervisor. BFF uses the live session organization and division. Pin pages to publication.version_id.",
+        "operationId": "listRatingTable",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "X-CPM-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CPM-Context",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "ratings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Ratings_TableRow"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "publication": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/Ratings_Publication"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "ratings",
+                        "total",
+                        "publication"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/bff/ratings/freshness": {
+      "get": {
+        "description": "Separate authenticated live source freshness check for a pinned publication. Does not modify stored scores or publication.",
+        "operationId": "getRatingFreshness",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "freshness": {
+                          "$ref": "#/components/schemas/Ratings_Freshness"
+                        }
+                      },
+                      "required": [
+                        "freshness"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ratings_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency; error is a stable diagnostic code"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -81324,6 +81641,161 @@
           "expected_revision"
         ],
         "type": "object"
+      },
+      "Ratings_TableRating": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "algorithm_version": {
+            "const": "legacy-rating-v1"
+          },
+          "division_id": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "exams": {
+            "type": "object",
+            "properties": {
+              "rating": {
+                "type": "number",
+                "format": "double"
+              }
+            },
+            "required": [
+              "rating"
+            ],
+            "additionalProperties": false
+          },
+          "final_rating": {
+            "format": "double",
+            "type": "number"
+          },
+          "homework": {
+            "type": "object",
+            "properties": {
+              "rating": {
+                "type": "number",
+                "format": "double"
+              }
+            },
+            "required": [
+              "rating"
+            ],
+            "additionalProperties": false
+          },
+          "input_hash": {
+            "pattern": "^[a-fA-F0-9]{64}$",
+            "type": "string"
+          },
+          "job_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "revision": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "tests": {
+            "type": "object",
+            "properties": {
+              "rating": {
+                "type": "number",
+                "format": "double"
+              }
+            },
+            "required": [
+              "rating"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "account_id",
+          "algorithm_version",
+          "division_id",
+          "exams",
+          "final_rating",
+          "homework",
+          "input_hash",
+          "job_id",
+          "organization_id",
+          "revision",
+          "status",
+          "tests"
+        ],
+        "additionalProperties": false
+      },
+      "Ratings_TableRow": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/Ratings_Profile"
+          },
+          "rating": {
+            "$ref": "#/components/schemas/Ratings_TableRating"
+          },
+          "place": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "profile",
+          "rating",
+          "place"
+        ],
+        "additionalProperties": false
+      },
+      "Ratings_Publication": {
+        "type": "object",
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "date_from": {
+            "type": "string",
+            "format": "date"
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "version_id",
+          "revision",
+          "as_of",
+          "date_from",
+          "date_to"
+        ],
+        "additionalProperties": false
       }
     }
   }

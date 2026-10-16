@@ -46,7 +46,7 @@ func openAPI() any {
 	}, "homework_id", "name", "deadline", "score", "status", "date_pass")
 	schemas["TestDetail"] = obj(object{
 		"test_id": str, "title": str, "direction": str, "score": number,
-		"source": object{"type": "string", "enum": []string{"internal", "external"}},
+		"source":             object{"type": "string", "enum": []string{"internal", "external"}},
 		"calculation_status": object{"type": "string", "enum": []string{"ready", "missing"}, "description": "Optional for historical results; distinguishes a completed zero from a missing result."},
 	}, "test_id", "title", "direction", "score", "source")
 	schemas["ExamDetail"] = obj(object{
@@ -69,6 +69,17 @@ func openAPI() any {
 		object{"if": object{"properties": object{"status": object{"const": "failed"}}}, "then": object{"required": []string{"error_code"}}},
 	}
 	schemas["PublishedRating"] = obj(object{"profile": ref("Profile"), "rating": ref("CalculationResult"), "place": positive}, "profile", "rating", "place")
+	summaryProperties := object{}
+	for key, value := range resultProperties {
+		summaryProperties[key] = value
+	}
+	delete(summaryProperties, "error_code")
+	for _, key := range []string{"homework", "tests", "exams"} {
+		summaryProperties[key] = obj(object{"rating": number}, "rating")
+	}
+	schemas["TableRating"] = obj(summaryProperties, "job_id", "revision", "organization_id", "division_id", "account_id", "input_hash", "algorithm_version", "status", "homework", "tests", "exams", "final_rating")
+	schemas["TableRow"] = obj(object{"profile": ref("Profile"), "rating": ref("TableRating"), "place": positive}, "profile", "rating", "place")
+	schemas["Publication"] = obj(object{"version_id": uuid, "revision": positive, "as_of": timestamp, "date_from": date, "date_to": date}, "version_id", "revision", "as_of", "date_from", "date_to")
 	schemas["PersonalHomework"] = obj(object{
 		"assignment_id": positive, "name": str, "type_name": str, "deadline": date, "status": integer, "result": nullable(number), "date_pass": nullable(str),
 	}, "assignment_id", "name", "type_name", "deadline", "status", "result", "date_pass")
@@ -133,6 +144,8 @@ func openAPI() any {
 	paths[jobBase+"/{job}/cancel"] = object{"post": operation("cancelRatingJob", "Cancel a job with ratings edit permission. A published job cannot be cancelled. Send an empty JSON object.", false, []any{divisionParam, jobParam}, ref("EmptyRequest"), ref("Job"), "200")}
 	paths[jobBase+"/{job}/retry"] = object{"post": operation("retryRatingJob", "Create a new job/revision for the original period of a failed, cancelled or superseded job. Requires ratings edit permission and a fresh idempotency key. Published and active jobs cannot be retried.", false, []any{divisionParam, jobParam, idempotency}, ref("EmptyRequest"), ref("Job"), "200", "202")}
 	paths[publicBase+"/ratings"] = object{"get": operation("listPublishedRatings", "Read the published version. Students see their own row; proctors see their group. Search and pagination follow access filtering; place is the ordinal position in the entire division version before filtering.", false, append([]any{divisionParam, version, parameter("q", "query", str, false)}, page...), nil, obj(object{"ratings": array(ref("PublishedRating")), "total": object{"type": "integer", "minimum": 0}, "freshness": ref("Freshness")}, "ratings", "total", "freshness"), "200")}
+	paths[publicBase+"/table"] = object{"get": operation("listRatingTable", "Admin/staff ratings view or supervisor: SQL page of persisted summary scores, without details or live source checks. Search includes name, group, class and account ID. Global rank precedes search. Pin later pages to publication.version_id.", false, append([]any{divisionParam, version, parameter("q", "query", str, false)}, page...), nil, obj(object{"ratings": array(ref("TableRow")), "total": object{"type": "integer", "minimum": 0}, "publication": nullable(ref("Publication"))}, "ratings", "total", "publication"), "200")}
+	paths[publicBase+"/freshness"] = object{"get": operation("getRatingFreshness", "Separate live source check for the chosen publication. Requires ratings view permission or supervisor. Never changes stored scores or publication.", false, []any{divisionParam, version}, nil, obj(object{"freshness": ref("Freshness")}, "freshness"), "200")}
 	paths[publicBase+"/me"] = object{"get": operation("getMyRating", "Student's own published result in the selected division. Before first publication rating is null.", false, []any{divisionParam, version}, nil, obj(object{"rating": nullable(ref("PublishedRating")), "freshness": ref("Freshness")}, "rating", "freshness"), "200")}
 	paths[publicBase+"/accounts/{account}"] = object{"get": operation("getAccountRating", "Read an authorized student's published details. A student cannot read another account; a proctor is limited to their group.", false, []any{divisionParam, accountParam, version}, nil, obj(object{"rating": ref("PublishedRating"), "freshness": ref("Freshness")}, "rating", "freshness"), "200")}
 	paths[publicBase+"/versions"] = object{"get": operation("listRatingVersions", "List up to 100 completed versions of this division, newest revision first. Requires ratings view permission or supervisor role.", false, []any{divisionParam}, nil, obj(object{"versions": array(ref("Job"))}, "versions"), "200")}

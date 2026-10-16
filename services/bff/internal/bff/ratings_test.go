@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -30,7 +31,7 @@ func TestRatingOpenAPIPublicBoundary(t *testing.T) {
 			}
 		}
 	}
-	if count != 10 {
+	if count != 12 {
 		t.Fatalf("unexpected public methods: %d", count)
 	}
 	if strings.Contains(string(openAPI), "/internal/ratings") {
@@ -183,5 +184,19 @@ func TestRatingStatusLinksPreserveOtherData(t *testing.T) {
 		if string(ratingsBrowserLinks([]byte(raw))) != raw {
 			t.Fatal("unrelated data modified")
 		}
+	}
+}
+
+func TestProgressiveRatingRoutesKeepQueriesAndScopeClosed(t *testing.T) {
+	for _, tail := range []string{"table", "freshness"} {
+		if ratingsRoute("GET", tail) != "/v1/ratings/divisions/%d/"+tail || ratingsRoute("POST", tail) != "" {
+			t.Fatal("read-only summary route mismatch")
+		}
+		if ratingsQuery("GET", tail, url.Values{"organization_id": {"11"}}) || ratingsQuery("GET", tail, url.Values{"division_id": {"17"}}) || ratingsQuery("GET", tail, url.Values{"version": {"a", "b"}}) {
+			t.Fatal("summary query expanded scope")
+		}
+	}
+	if !ratingsQuery("GET", "table", url.Values{"q": {"Ирина"}, "limit": {"50"}, "offset": {"50"}, "version": {"12345678-abcd-4321-abcd-123456789abc"}}) || ratingsQuery("GET", "freshness", url.Values{"q": {"x"}}) {
+		t.Fatal("table/freshness query contract mismatch")
 	}
 }

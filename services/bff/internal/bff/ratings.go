@@ -11,7 +11,7 @@ import (
 // immutable calculation inputs and service-key callbacks never cross the BFF.
 const ratingUUID = `[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}`
 
-var ratingRoutes = regexp.MustCompile(`^(GET (jobs|jobs/` + ratingUUID + `|ratings|me|accounts/[1-9][0-9]{0,18}|versions|report)|POST (jobs|jobs/` + ratingUUID + `/(cancel|retry)))$`)
+var ratingRoutes = regexp.MustCompile(`^(GET (jobs|jobs/` + ratingUUID + `|ratings|table|freshness|me|accounts/[1-9][0-9]{0,18}|versions|report)|POST (jobs|jobs/` + ratingUUID + `/(cancel|retry)))$`)
 var ratingStatusURL = regexp.MustCompile(`^/v1/ratings/divisions/[1-9][0-9]*/jobs/(` + ratingUUID + `)$`)
 
 func ratingsRoute(method, tail string) string {
@@ -27,9 +27,9 @@ func ratingsQuery(method, tail string, query url.Values) bool {
 		switch {
 		case tail == "jobs":
 			allowed["limit"], allowed["offset"] = true, true
-		case tail == "ratings":
+		case tail == "ratings" || tail == "table":
 			allowed["q"], allowed["limit"], allowed["offset"], allowed["version"] = true, true, true, true
-		case tail == "me" || tail == "report" || strings.HasPrefix(tail, "accounts/"):
+		case tail == "me" || tail == "freshness" || tail == "report" || strings.HasPrefix(tail, "accounts/"):
 			allowed["version"] = true
 		}
 	}

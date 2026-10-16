@@ -71,6 +71,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/ratings/divisions/{division}/jobs/{job}/cancel", s.public(s.cancel))
 	m.HandleFunc("POST /v1/ratings/divisions/{division}/jobs/{job}/retry", s.public(s.retry))
 	m.HandleFunc("GET /v1/ratings/divisions/{division}/ratings", s.public(s.list))
+	m.HandleFunc("GET /v1/ratings/divisions/{division}/table", s.public(s.table))
+	m.HandleFunc("GET /v1/ratings/divisions/{division}/freshness", s.public(s.tableFreshness))
 	m.HandleFunc("GET /v1/ratings/divisions/{division}/me", s.public(s.me))
 	m.HandleFunc("GET /v1/ratings/divisions/{division}/accounts/{account}", s.public(s.details))
 	m.HandleFunc("GET /v1/ratings/divisions/{division}/versions", s.public(s.versions))
