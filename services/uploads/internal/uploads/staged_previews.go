@@ -186,7 +186,9 @@ func stagedValidatePreview(ss Session, raw json.RawMessage, targetRevision int64
 }
 
 func (s *Server) validateStagedInput(ctx context.Context, ss Session, token string, input json.RawMessage, targetRevision int64) (json.RawMessage, string, error) {
-	path := "/internal/tests/imports/json/validate"
+	// Use the owner's public preview with the original live bearer. The Uploads
+	// coordinator credential is not the Tests internal service credential.
+	path := "/v1/tests/divisions/" + strconv.FormatInt(ss.DivisionID, 10) + "/imports/json/preview"
 	if ss.Type == "tests.external-results" {
 		path = "/internal/tests/external-results/validate"
 	}

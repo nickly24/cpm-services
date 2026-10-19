@@ -173,8 +173,9 @@ func sourcePosition(ref string) (int, int, error) {
 	return column - 1, row, nil
 }
 
-func sourceWorkbook(content []byte, externalIDs bool) ([]sourceRecord, error) {
-	if err := validFile(content, "xlsx", ownerInputMaxRows); err != nil {
+func sourceWorkbook(content []byte, externalIDs bool, table ...bool) ([]sourceRecord, error) {
+	allowFormatted := len(table) > 0 && table[0]
+	if err := validFile(content, "xlsx", ownerInputMaxRows, allowFormatted); err != nil {
 		return nil, err
 	}
 	z, err := zip.NewReader(bytes.NewReader(content), int64(len(content)))
@@ -291,6 +292,9 @@ func sourceWorkbook(content []byte, externalIDs bool) ([]sourceRecord, error) {
 		record := sourceRecord{number: number, cells: map[int]sourceValue{}}
 		previousCol := -1
 		for _, cell := range row.Cells {
+			if allowFormatted && cell.Formula == nil && cell.Value == "" && cell.Inline.value() == "" {
+				continue
+			}
 			column := previousCol + 1
 			if cell.Ref != "" {
 				var cellRow int
@@ -558,6 +562,9 @@ func sourceRowUUIDHash(sourceDigest [32]byte, row int) string {
 func parseOwnerInput(kind string, content []byte, extension string, fields map[string]string) (json.RawMessage, error) {
 	switch kind {
 	case "tests.json":
+		if extension == "xlsx" {
+			return questionTableInput(content, fields)
+		}
 		if len(content) == 0 {
 			return nil, api(400, "empty_file")
 		}
@@ -579,26 +586,9 @@ func parseOwnerInput(kind string, content []byte, extension string, fields map[s
 		if _, err := onlineTestPadObject(content); err != nil {
 			return nil, err
 		}
-		metadata := map[string]any{}
-		for _, key := range []string{"title", "direction", "startDate", "endDate"} {
-			if value, ok := fields[key]; ok {
-				metadata[key] = value
-			}
-		}
-		if value, ok := fields["timeLimitMinutes"]; ok {
-			n, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				return nil, api(400, "invalid_source_metadata")
-			}
-			metadata["timeLimitMinutes"] = n
-		}
-		for _, key := range []string{"published", "visible"} {
-			if value, ok := fields[key]; ok {
-				if value != "true" && value != "false" {
-					return nil, api(400, "invalid_source_metadata")
-				}
-				metadata[key] = value == "true"
-			}
+		metadata, err := questionImportMetadata(fields)
+		if err != nil {
+			return nil, err
 		}
 		return json.Marshal(map[string]any{"importFormat": "online_test_pad", "sourceText": string(content), "metadata": metadata})
 	case "users.legacy", "tests.external-results":

@@ -16,7 +16,8 @@ import (
 
 const maxFile = 8 << 20
 
-func validFile(content []byte, ext string, maxRows int) error {
+func validFile(content []byte, ext string, maxRows int, formatted ...bool) error {
+	allowFormatted := len(formatted) > 0 && formatted[0]
 	if len(content) == 0 {
 		return api(400, "empty_file")
 	}
@@ -111,7 +112,7 @@ func validFile(content []byte, ext string, maxRows int) error {
 						}
 						if el.Name.Local == "c" {
 							cells++
-							if cells > 64 {
+							if cells > 64 && (!allowFormatted || cells > 16384) {
 								return api(413, "column_limit_exceeded")
 							}
 						}

@@ -165,3 +165,18 @@ Tests использует существующий долговечный ме�
 Режим `json_import_http_test.py --negative-zero-only` создаёт один отдельный тест с исходными JSON-токенами `ValueInt:-0`, `ValueFloat:-0.0` и строкой `ValueInt:"-0"`. Он использует активное направление организации 1001 из `fixtures.directions` отчёта `dev/local/external-tests-integration-summary.json`, без создания, переименования или архивирования этого направления; архивируется только новый собственный тест. Проверяются preview, commit, сохранённые вопросы и content API; отчёт — `dev/local/tests-json-import-negative-zero-http-report.json`. Регрессия сопоставлена с шестью случаями чистых функций старого Python-конвертера, включая запасные текстовые/HTML ответы и отсутствие fallback.
 
 Проверка владельца после добавления контракта: `go test -race ./...` и `go vet ./...` в `services/tests`. После подъёма текущего бинарного образа выполняется `dev/.venv/bin/python services/tests/scripts/json_import_http_test.py`. Сценарий создаёт вымышленные тесты и направление только через owner API, проверяет public/private preview, commit, повторы, параллельное создание, права, смену направления и сохранённые документы/версии через read-only Mongo. В конце он архивирует свои fixtures через API и сохраняет отчёт `dev/local/tests-json-import-http-report.json` без секретов. Прямых записей в БД и обращения к production нет. Unit-прохождение само по себе не подтверждает живую интеграцию Uploads/BFF.
+
+## Excel question tables
+
+The payload `importFormat=question_table` carries raw `rows` (physical `row`,
+`title`, `number`, `category`, `question`, `options`, `answer`, `note`) and the
+same metadata fields as OnlineTestPad. Uploads extracts bounded workbook cells;
+Tests converts and validates them. Each question weighs one point; source IDs
+are preserved. Choice markers may be Cyrillic/Latin letters or numbers, separated
+by newlines or at least two spaces. Exact unique answer-text matches can repair
+wrong labels with a physical-row warning; unmatched keys block confirmation.
+Text aliases accept `/` and quoted alternatives after `Допустимо:`. Dates from
+Excel date cells remain date strings. Duplicate option texts, inferred types and
+changed source titles are visible warnings. Native hashing, current permissions,
+Core references, grant binding, atomic creation and idempotency also cover this
+source format. Uploaded JavaScript is still parsed as literal JSON and never run.

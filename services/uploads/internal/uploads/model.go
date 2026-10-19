@@ -53,7 +53,7 @@ func Catalog() []Type {
 		{"users.legacy", "core", "users", []string{"xlsx"}, "owner_session", "division + organization catalogs", 8 << 20, 100, true, true, true, "Native Core max_rows=100; legacy workbook mapping stays in Core", true},
 		{"cards.xlsx", "cards", "train", []string{"xlsx"}, "owner_session", "organization", 8 << 20, 1000, true, true, true, "", true},
 		{"cards.transform", "cards", "train", []string{"json"}, "owner_session", "organization cards -> division test draft", 1 << 20, 200, true, false, true, "", false},
-		{"tests.json", "tests", "tests", []string{"json", "js"}, "validated_input", "division", 8 << 20, 200, true, true, true, "Tests validates at most 200 questions; normalized owner DTO bounded to 1 MiB", true},
+		{"tests.json", "tests", "tests", []string{"json", "js", "xlsx"}, "validated_input", "division", 8 << 20, 200, true, true, true, "Tests validates at most 200 questions; normalized owner DTO bounded to 1 MiB", true},
 		{"tests.external-results", "tests", "test-results", []string{"xlsx"}, "validated_input", "division", 8 << 20, 5000, true, true, true, "Tests validates all rows atomically; owner DTO bounded to 1 MiB", true},
 		{"exams.questions", "exams", "exams", []string{"xlsx"}, "owner_session", "division", 8 << 20, 5000, true, true, true, "", true},
 		{"exams.assignments", "exams", "exams", []string{"xlsx"}, "owner_session", "division", 8 << 20, 5000, true, true, true, "", true},

@@ -46,7 +46,12 @@ func (s *Server) create(r *http.Request, a Actor, sc Scope) (any, int, error) {
 		if !t.Create || t.Mode != "owner_session" && t.Mode != "validated_input" {
 			return nil, 0, api(501, "owner_adapter_pending")
 		}
-		if e = validFile(content, ext, t.MaxRows); e != nil {
+		rows := t.MaxRows
+		table := t.ID == "tests.json" && ext == "xlsx"
+		if table {
+			rows = ownerInputMaxRows
+		}
+		if e = validFile(content, ext, rows, table); e != nil {
 			return nil, 0, e
 		}
 		if t.ID == "users.legacy" || stagedType(t.ID) {

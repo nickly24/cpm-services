@@ -24,3 +24,18 @@ after matching source freeze and affected-owner acknowledgments. Ordinary
 `run --operations` is available for the same approved profile.
 
 See [contract](docs/contracts.md), [process matrix](docs/matrix.md), [Rabbit delivery](docs/rabbit-delivery.md), and [verification](docs/verification.md). Local acceptance and availability are not production deployment or a capacity guarantee.
+
+## Test question tables and live preview access
+
+`tests.json` also accepts `.xlsx` question tables: header within the first ten
+rows, columns Название теста, Номер, Категория вопроса, Вопрос, Варианты ответов,
+Правильный ответ, optional Примечание к ответу. Empty formatted cells are ignored;
+archive/formula/external-content/expanded-byte guards remain. At most 200 actual
+questions; source question numbers and physical row numbers are preserved.
+Uploads sends raw cells as `importFormat=question_table` to Tests. Tests owns
+answer matching, type inference, aliases, warnings and normal domain validation.
+
+JSON/JS/XLSX preview uses the existing authenticated owner endpoint
+`/v1/tests/divisions/{division}/imports/json/preview` with the original bearer,
+not the unrelated Uploads internal credential. Confirmation and worker grant,
+idempotency, owner receipt and tenant fences remain unchanged.

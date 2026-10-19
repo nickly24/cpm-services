@@ -639,6 +639,10 @@ func buildJSONImportPreview(in JSONImportPreviewDTO, directionName string) JSONI
 		out.Source = "online_test_pad"
 		payload, out.SourceTitle, out.Warnings = jsonImportConvertOTP(payload, &out.Errors)
 	}
+	if payload["importFormat"] == "question_table" {
+		out.Source = "question_table"
+		payload, out.SourceTitle, out.Warnings = jsonImportConvertTable(payload, &out.Errors)
+	}
 	out.Preview.Title = jsonImportString(payload["title"])
 	if out.Preview.Title == "" {
 		jsonImportIssue(&out.Errors, "title", "Название теста обязательно")
