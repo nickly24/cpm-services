@@ -425,6 +425,19 @@ class Regression:
         unicode_qs = [{'question_id': 1, 'type': 'text', 'text': 'Unicode', 'points': 2, 'answers': [], 'correct_answers': ['İSTANBUL', 'ΟΣ']}]
         self.grade(student, self.create('unicode-text', unicode_qs), unicode_qs, [{'question_id': 1, 'value': '\u001cİSTANBUL\u001f'}], 'unicode-text')
 
+        self.stage = 'added text answer changes a historical wrong result'
+        alias_questions = [{'question_id': 1, 'type': 'text', 'text': 'Город', 'points': 1,
+                            'answers': [], 'correct_answers': ['Питер']}]
+        alias_answers = [{'question_id': 1, 'value': ' Москва '}]
+        alias_doc = self.create('added-text-answer', alias_questions)
+        alias_fixture, old_alias_grade = self.grade(student, alias_doc, alias_questions, alias_answers, 'added-text-answer')
+        self.check(old_alias_grade['score'] == 0, 'historical text is initially wrong')
+        alias_questions[0]['correct_answers'].append('Москва')
+        self.change('adding accepted text answer', alias_doc, [alias_fixture],
+                    lambda b: b['questions'][0]['correct_answers'].append('Москва'), oracle(alias_questions, alias_answers))
+        self.check(self.record(alias_doc['id'], alias_fixture['submission_id'])['result']['score'] == 100,
+                   'text alias addition regrades the saved response from zero to full weight')
+
         self.stage = 'same test in two divisions and independent copy'
         source = self.create('shared-regrade')
         source = base.api('/divisions/1002/tests/' + source['id'] + '/attach', self.admin, 'POST', {'expected_revision': source['revision']})

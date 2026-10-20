@@ -414,3 +414,23 @@ func TestTemplateOwnerFailuresAndRedirectsDoNotExposePrivateBytes(t *testing.T) 
 		t.Fatal("template download forwarded actor authorization across an owner redirect")
 	}
 }
+
+func TestTestsQuestionTableTemplateForwardsXLSXWithReadOnlyRights(t *testing.T) {
+	body := sourceTestArchive(t, `<row r="1"><c r="A1" t="inlineStr"><is><t>Synthetic header</t></is></c></row>`, nil) // structural XLSX fixture used by the existing file policy tests
+	owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.RequestURI() != "/v1/tests/divisions/7/imports/json/template?direction_id=83&format=question_table" {
+			t.Error("wrong Excel template target", r.URL.RequestURI())
+		}
+		w.Header().Set("Content-Type", templateXLSXMIME)
+		w.Write(body)
+	}))
+	defer owner.Close()
+	actor := templateTestActor()
+	actor.Permissions["upload"] = Permission{View: true}
+	actor.Permissions["tests"] = Permission{View: true}
+	w := httptest.NewRecorder()
+	err := templateTestServer(owner.URL).template(w, templateTestRequest("tests.json", "?direction_id=83&format=question_table"), actor, Scope{42, 7, 9})
+	if err != nil || !bytes.Equal(w.Body.Bytes(), body) || w.Header().Get("Content-Type") != templateXLSXMIME || !strings.Contains(w.Header().Get("Content-Disposition"), ".xlsx") {
+		t.Fatal("Excel template failed", err)
+	}
+}

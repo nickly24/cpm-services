@@ -136,13 +136,18 @@ func openAPI() map[string]any {
 					parameters = append(parameters, map[string]any{"name": name, "in": "query", "schema": map[string]any{"type": "string"}})
 				}
 			}
+			if path == "/v1/tests/bank" || path == "/v1/tests/divisions/{division}/tests" {
+				for _, name := range []string{"view", "include_external", "status", "date_from", "date_to"} {
+					parameters = append(parameters, map[string]any{"name": name, "in": "query", "description": "view=admin enables the paginated administrative read model", "schema": map[string]any{"type": "string"}})
+				}
+			}
 			if path == "/v1/tests/bank" || path == "/v1/tests/{test}" {
 				parameters = append(parameters, map[string]any{"name": "target_division_id", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1}})
 			}
 			if strings.HasSuffix(path, "/imports/json/template") || strings.HasSuffix(path, "/imports/json/schema") {
 				parameters = append(parameters,
 					map[string]any{"name": "direction_id", "in": "query", "required": true, "schema": map[string]any{"type": "integer", "minimum": 1}},
-					map[string]any{"name": "format", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"cpm_json", "online_test_pad"}, "default": "cpm_json"}})
+					map[string]any{"name": "format", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"cpm_json", "online_test_pad", "question_table"}, "default": "cpm_json"}})
 			}
 		}
 		if method == "POST" && (strings.HasSuffix(path, "/copy") || strings.HasSuffix(path, "/tests") || strings.HasSuffix(path, "/drafts") || strings.HasSuffix(path, "/draft")) {
@@ -155,6 +160,9 @@ func openAPI() map[string]any {
 		output := map[string]any{"type": "object"}
 		if r.Output != nil {
 			output = schema(reflect.TypeOf(r.Output))
+		}
+		if method == "GET" && (path == "/v1/tests/bank" || path == "/v1/tests/divisions/{division}/tests") {
+			output = map[string]any{"anyOf": []any{output, schema(reflect.TypeOf(AdminCatalogView{}))}}
 		}
 		for _, code := range []string{"200", "201", "202"} {
 			responses[code] = map[string]any{"description": "Результат операции", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"type": "object", "required": []string{"status", "data"}, "properties": map[string]any{"status": map[string]any{"const": true}, "data": output}}}}}

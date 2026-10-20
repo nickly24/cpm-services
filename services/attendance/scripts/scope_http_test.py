@@ -114,8 +114,8 @@ def verify():
     a.read(f'/divisions/{d2}/class-days/{days[d1]["id"]}',404);a.write(f'/divisions/{d2}/attendance-types/{ts[d1]["id"]}',present,'PUT',404)
     a.write(dp+'/attendance',{'account_id':mu,'attendance_type_id':ts[d1]['id']},want=404)
     q=http(8013,'/v1/attendance'+dp+'/qr','POST',{},s.token)['data']['value']['qr']
-    a.write(f'/divisions/{d2}/class-days/{days[d2]["id"]}/scan',{'qr':q},want=400);m.write(f'/divisions/{md}/class-days/{days[md]["id"]}/scan',{'qr':q},want=400);a.write(dp+'/scan',{'qr':q+'x'},want=400);a.write(dp+'/scan',{'qr':str(u)},want=400)
-    scanned=p.write(dp+'/scan',{'qr':q});expect(scanned['id']==mark['id'],'real signed scoped QR records one attendance entry')
+    a.write(f'/divisions/{d2}/class-days/{days[d2]["id"]}/scan',{'qr':q},want=400);m.write(f'/divisions/{md}/class-days/{days[md]["id"]}/scan',{'qr':q},want=400);a.write(dp+'/scan',{'qr':q+'x'},want=400);a.write(dp+'/scan',{'qr':'invalid-profile-id'},want=400)
+    duplicate=p.write(dp+'/scan',{'qr':q},want=409);expect(duplicate['error']=='attendance_already_recorded','signed scan does not overwrite an existing attendance entry')
     # Live proctor assignment and exact receipt replay must both observe current grants.
     p.read('/resources/rooms');rev=p.rev;key=secrets.token_hex(16);data={'account_id':u,'attendance_type_id':ts[d1]['id']}
     receipt=p.write(dp+'/attendance',data,key=key,revision=rev);expect(p.write(dp+'/attendance',data,key=key,revision=rev)==receipt,'unchanged proctor assignment exact replay succeeds')

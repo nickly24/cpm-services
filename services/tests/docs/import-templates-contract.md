@@ -6,9 +6,9 @@
 ключи существующих тестов, имена или баллы учеников в файлы не экспортируются.
 Методы только читают; не создают тесты, импортные сессии, сдачи или результаты.
 
-## JSON / OnlineTestPad
+## JSON / OnlineTestPad / Excel
 
-`GET /v1/tests/divisions/{division}/imports/json/template?direction_id=N&format=cpm_json|online_test_pad`
+`GET /v1/tests/divisions/{division}/imports/json/template?direction_id=N&format=cpm_json|online_test_pad|question_table`
 
 `direction_id` обязателен, положительный int64, активное направление этой
 организации. `format` по умолчанию `cpm_json`. Неизвестные и повторяющиеся query
@@ -19,6 +19,7 @@
 |---|---|---|
 | cpm_json | application/json; charset=utf-8 | primer_importa_testa_cpm.json |
 | online_test_pad | text/javascript; charset=utf-8 | primer_importa_testa_online_test_pad.js |
+| question_table | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | primer_importa_testa_excel.xlsx |
 
 Ответ 200 — чистый файл без `{status,data}`. JSON использует прежние camelCase
 поля: title, direction, startDate, endDate, timeLimitMinutes, published, visible,
@@ -121,3 +122,9 @@ ID, конфликт без fallback, текстовый ID 9007199254740993 б�
 отказы для небезопасного числового ID, нуля, дроби и повторного заголовка.
 JSON/OnlineTestPad/XLSX байты проходят через Uploads без изменения. Import commit,
 изменения каталогов/SQL и browser/BFF этим отчётом не проверялись и не выполнялись.
+
+## Дополнение Release20: Excel и скачивание с правами просмотра
+
+Формат question_table отдаёт XLSX с одним активным листом «Вопросы», исходными колонками Название теста/Номер/Категория вопроса/Вопрос/Варианты ответов/Правильный ответ/Примечание к ответу и тремя синтетическими примерами single/multiple/text. Переносы вариантов и альтернативы текстового ответа сохраняются. Вопрос стоит1балл. Формат использует тот же direction_id и прежние upload.view/tests.view, не даёт прав на импорт. При загрузке Excel даты/лимит/скрытость берутся из metadata формы; в XLSX нет настроек публикации.
+
+Uploads и BFF пропускают question_table только через зарегистрированный шаблон tests.json и корректный XLSX MIME. JSON/JS варианты сохранены. В UI Excel предлагается первым. Выбор направления/внешнего теста/экзамена доступен с правами просмотра; файл/preview/commit остаются защищены edit. Исключение users.legacy сохраняет native требование upload.edit+users.edit и объясняет его в UI.

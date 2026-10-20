@@ -33,7 +33,7 @@ func uploadsQuery(method, tail string, q url.Values) bool {
 			if tail == "templates/tests.external-results" && key == "target_id" && uploadsExternalTargetID.MatchString(values[0]) {
 				continue
 			}
-			if tail == "templates/tests.json" && (key == "direction_id" && uploadsTargetID.MatchString(values[0]) || key == "format" && (values[0] == "cpm_json" || values[0] == "online_test_pad")) {
+			if tail == "templates/tests.json" && (key == "direction_id" && uploadsTargetID.MatchString(values[0]) || key == "format" && (values[0] == "cpm_json" || values[0] == "online_test_pad" || values[0] == "question_table")) {
 				continue
 			}
 		}

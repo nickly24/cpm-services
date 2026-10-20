@@ -107,7 +107,7 @@ func cloneQuestions(qs []Question) []Question {
 	return copy
 }
 
-func TestRecalculationPolicyMatchesEveryLegacyTriggerAndNonTrigger(t *testing.T) {
+func TestRecalculationPolicyMatchesSupportedTriggersAndNonTriggers(t *testing.T) {
 	base := gradeQuestions()
 	cases := []struct {
 		name     string
@@ -131,13 +131,18 @@ func TestRecalculationPolicyMatchesEveryLegacyTriggerAndNonTrigger(t *testing.T)
 		}, []string{"correct_flag_changed"}, nil},
 		{"remove wrong option", func(q []Question) []Question { q[0].Answers = q[0].Answers[:2]; return q }, []string{"option_removed"}, nil},
 		{"remove alias", func(q []Question) []Question { q[2].CorrectAnswers = q[2].CorrectAnswers[:2]; return q }, []string{"text_correct_removed"}, nil},
-		{"case only alias edit still counts removal", func(q []Question) []Question { q[2].CorrectAnswers[0] = "МОСКВА"; return q }, []string{"text_correct_removed"}, nil},
+		{"case only alias edit still counts replacement", func(q []Question) []Question { q[2].CorrectAnswers[0] = "МОСКВА"; return q }, []string{"text_correct_removed", "text_correct_added"}, nil},
+		{"replace alias", func(q []Question) []Question { q[2].CorrectAnswers = []string{"Питер"}; return q }, []string{"text_correct_removed", "text_correct_added"}, nil},
 		{"new question", func(q []Question) []Question { next := q[0]; next.ID = 4; return append(q, next) }, nil, nil},
 		{"new correct option", func(q []Question) []Question {
 			q[1].Answers = append(q[1].Answers, Option{ID: "d", IsCorrect: true})
 			return q
 		}, nil, nil},
-		{"new alias", func(q []Question) []Question { q[2].CorrectAnswers = append(q[2].CorrectAnswers, "Moscow"); return q }, nil, nil},
+		{"new alias", func(q []Question) []Question { q[2].CorrectAnswers = append(q[2].CorrectAnswers, "Moscow"); return q }, []string{"text_correct_added"}, nil},
+		{"alias reorder", func(q []Question) []Question {
+			q[2].CorrectAnswers[0], q[2].CorrectAnswers[1] = q[2].CorrectAnswers[1], q[2].CorrectAnswers[0]
+			return q
+		}, nil, nil},
 		{"question and option text", func(q []Question) []Question { q[0].Text = "Different"; q[0].Answers[0].Text = "Different"; return q }, nil, nil},
 		{"reorder", func(q []Question) []Question { return []Question{q[2], q[0], q[1]} }, nil, nil},
 	}

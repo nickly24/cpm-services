@@ -162,8 +162,8 @@ type RecalcDecision struct {
 	ExcludedQuestionIDs []int64  `json:"excluded_question_ids"`
 }
 
-// DecideRecalc preserves the old policy, including additions that deliberately
-// do not trigger recalculation. Type changes exclude that question permanently
+// DecideRecalc extends the old policy with added text answers. New questions
+// and choice options still do not trigger recalculation. Type changes exclude that question permanently
 // from historical attempts; changing it back must not restore those points.
 func DecideRecalc(before, after []Question) RecalcDecision {
 	decision := RecalcDecision{Reasons: []string{}, ExcludedQuestionIDs: []int64{}}
@@ -224,12 +224,22 @@ func DecideRecalc(before, after []Question) RecalcDecision {
 			}
 		}
 		newTexts := map[string]bool{}
+		oldTexts := map[string]bool{}
+		for _, text := range old.CorrectAnswers {
+			oldTexts[text] = true
+		}
 		for _, text := range next.CorrectAnswers {
 			newTexts[text] = true
 		}
 		for _, text := range old.CorrectAnswers {
 			if !newTexts[text] {
 				add("text_correct_removed")
+				break
+			}
+		}
+		for _, text := range next.CorrectAnswers {
+			if !oldTexts[text] {
+				add("text_correct_added")
 				break
 			}
 		}

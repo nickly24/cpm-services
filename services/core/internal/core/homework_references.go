@@ -18,18 +18,19 @@ func (s *Server) homeworkReferences(w http.ResponseWriter, r *http.Request) {
 		OrganizationID int64   `json:"organization_id"`
 		DivisionID     int64   `json:"division_id"`
 		AccountIDs     []int64 `json:"account_ids"`
+		ProfileIDs     []int64 `json:"profile_ids"`
 		GroupID        *int64  `json:"group_id"`
 	}
 	if e := decode(r, &in); e != nil {
 		fail(w, e)
 		return
 	}
-	if in.OrganizationID < 1 || in.DivisionID < 1 || !positive(in.GroupID) || len(in.AccountIDs) > 1000 {
+	if in.OrganizationID < 1 || in.DivisionID < 1 || !positive(in.GroupID) || len(in.AccountIDs) > 1000 || len(in.ProfileIDs) > 1000 || len(in.AccountIDs) > 0 && len(in.ProfileIDs) > 0 {
 		fail(w, bad("invalid_reference"))
 		return
 	}
 	seen := make(map[int64]bool, len(in.AccountIDs))
-	for _, id := range in.AccountIDs {
+	for _, id := range append(append([]int64{}, in.AccountIDs...), in.ProfileIDs...) {
 		if id < 1 || seen[id] {
 			fail(w, bad("invalid_reference"))
 			return
@@ -86,6 +87,12 @@ func (s *Server) homeworkReferences(w http.ResponseWriter, r *http.Request) {
 			args = append(args, id)
 		}
 	}
+	if len(in.ProfileIDs) > 0 {
+		query += " AND a.role='student' AND a.ref_id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(in.ProfileIDs)), ",") + ")"
+		for _, id := range in.ProfileIDs {
+			args = append(args, id)
+		}
+	}
 	query += " ORDER BY a.id LIMIT 1001"
 	members, e := list(r.Context(), tx, query, args...)
 	if e != nil {
@@ -96,7 +103,7 @@ func (s *Server) homeworkReferences(w http.ResponseWriter, r *http.Request) {
 		fail(w, bad("reference_limit_exceeded"))
 		return
 	}
-	if len(in.AccountIDs) > 0 && len(members) != len(in.AccountIDs) {
+	if len(in.AccountIDs) > 0 && len(members) != len(in.AccountIDs) || len(in.ProfileIDs) > 0 && len(members) != len(in.ProfileIDs) {
 		fail(w, missing)
 		return
 	}

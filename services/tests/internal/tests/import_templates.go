@@ -26,7 +26,7 @@ func (s *Server) importTemplateSpecs() []routeSpec {
 func importDownloadOpenAPI(path string) map[string]any {
 	switch {
 	case strings.HasSuffix(path, "/imports/json/template"):
-		return map[string]any{"application/json": map[string]any{"schema": legacyImportFileSchema()}, "text/javascript": map[string]any{"schema": map[string]any{"type": "string"}}}
+		return map[string]any{"application/json": map[string]any{"schema": legacyImportFileSchema()}, "text/javascript": map[string]any{"schema": map[string]any{"type": "string"}}, importXLSXMIME: map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}
 	case strings.HasSuffix(path, "/imports/results/template"):
 		return map[string]any{importXLSXMIME: map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}
 	case strings.HasSuffix(path, "/imports/results/sample"):
@@ -146,7 +146,7 @@ func (s *Server) jsonTemplateAccess(r *http.Request, a Actor, division int64) (R
 	if format == "" {
 		format = "cpm_json"
 	}
-	if format != "cpm_json" && format != "online_test_pad" {
+	if format != "cpm_json" && format != "online_test_pad" && format != "question_table" {
 		return Reference{}, "", bad("invalid_template_format")
 	}
 	refs, e := s.Dependencies.References(r.Context(), a.OrganizationID, []int64{division}, &direction)
@@ -188,6 +188,10 @@ func otpImportSample() map[string]any {
 }
 
 func jsonTemplateBytes(direction, format string) (importDownload, error) {
+	if format == "question_table" {
+		body, err := questionTableWorkbook(direction)
+		return importDownload{body, importXLSXMIME, "primer_importa_testa_excel.xlsx"}, err
+	}
 	payload := nativeImportSample(direction)
 	mime, filename := "application/json; charset=utf-8", "primer_importa_testa_cpm.json"
 	if format == "online_test_pad" {
@@ -241,12 +245,15 @@ func (s *Server) jsonTemplateSchema(r *http.Request, a Actor, division int64) (a
 		return nil, 0, e
 	}
 	fileSchema := legacyImportFileSchema()
+	if format == "question_table" {
+		fileSchema = map[string]any{"type": "string", "format": "binary", "required_columns": []string{"Название теста", "Номер", "Категория вопроса", "Вопрос", "Варианты ответов", "Правильный ответ"}, "optional_columns": []string{"Примечание к ответу"}, "max_questions": 200}
+	}
 	if format == "online_test_pad" {
 		fileSchema = map[string]any{"type": "string", "description": "Файл .js содержит var test = { ... }; объект разбирается как JSON без выполнения JavaScript. Name, Questions[].AnswerType (10/210/410/420), Text, maxScore/RightScore, AnswerTemplates[] с Text/ValueText/ValueInt/ValueFloat, IsRightAnswer/Score.", "converted_schema": fileSchema}
 	}
 	return ImportSchemaView{Format: format, Capability: "supported", OrganizationID: a.OrganizationID, DivisionID: division, DirectionID: direction.ID,
 		Filename: file.Filename, MIME: file.MIME, FileSchema: fileSchema, ValidateSchema: jsonImportTransportSchema(false), CommitSchema: jsonImportTransportSchema(true),
-		Notes: []string{"Все вопросы и ответы примера вымышлены; реальные тесты и результаты не читаются.", "Нативный пример скрыт; демонстрационные даты 2099 года замените перед импортом. Даты обязательны по прежнему контракту.", "Для .js Uploads передаёт payload {importFormat:online_test_pad,sourceText,metadata}; направление и даты задаются в metadata; файл не исполняется."}}, 200, nil
+		Notes: []string{"Все вопросы и ответы примера вымышлены; реальные тесты и результаты не читаются.", "JSON-пример скрыт; демонстрационные даты 2099 года замените перед импортом. Для Excel/JS даты и лимит задаются в форме.", "Для .js/.xlsx направление, даты и лимит передаются в metadata; JavaScript не исполняется."}}, 200, nil
 }
 
 func (s *Server) externalTemplateAccess(r *http.Request, a Actor) (ExternalTestDocument, error) {
@@ -302,12 +309,16 @@ func externalImportSheet() string {
 }
 
 func externalImportWorkbook() ([]byte, error) {
+	return importWorkbook("Результаты", externalImportSheet())
+}
+
+func importWorkbook(sheetName, sheet string) ([]byte, error) {
 	files := []struct{ name, content string }{
 		{"[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`},
 		{"_rels/.rels", `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
-		{"xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets><sheet name="Результаты" sheetId="1" r:id="rId1"/></sheets></workbook>`},
+		{"xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets><sheet name="` + sheetName + `" sheetId="1" r:id="rId1"/></sheets></workbook>`},
 		{"xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`},
-		{"xl/worksheets/sheet1.xml", externalImportSheet()},
+		{"xl/worksheets/sheet1.xml", sheet},
 	}
 	var out bytes.Buffer
 	w := zip.NewWriter(&out)

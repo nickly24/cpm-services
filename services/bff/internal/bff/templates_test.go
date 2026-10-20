@@ -94,6 +94,18 @@ func TestProtectedTemplatesTransportAndLiveFence(t *testing.T) {
 	if request("GET", "/bff/uploads/templates/tests.json?direction_id=12").Code != 502 {
 		t.Fatal("OTP MIME accepted for JSON format")
 	}
+	contentType, payload = xlsxType, "PK\x03\x04template"
+	w = request("GET", "/bff/uploads/templates/tests.json?direction_id=12&format=question_table")
+	if w.Code != 200 || w.Header().Get("Content-Type") != xlsxType || w.Header().Get("Content-Disposition") != `attachment; filename="import-template.xlsx"` {
+		t.Fatal("Excel question template rejected", w.Code)
+	}
+	if request("GET", "/bff/uploads/templates/tests.json?direction_id=12&format=cpm_json").Code != 502 {
+		t.Fatal("Excel body allowed for JSON format")
+	}
+	payload = "invalid workbook"
+	if request("GET", "/bff/uploads/templates/tests.json?direction_id=12&format=question_table").Code != 502 {
+		t.Fatal("non-ZIP template passed Excel route")
+	}
 	contentType, payload = xlsxType, "PK-template"
 	w = request("GET", "/bff/uploads/templates/tests.external-results?target_id="+strings.Repeat("a", 24))
 	if w.Code != 200 || !strings.Contains(lastPath, "target_id="+strings.Repeat("a", 24)) {

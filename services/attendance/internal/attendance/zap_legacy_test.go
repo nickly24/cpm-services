@@ -223,7 +223,7 @@ func TestZapLegacyApprovalReplacesQRButScanCannotOverrideZap(t *testing.T) {
 	if linked.ID != scanned.ID || linked.ZapID == nil || *linked.ZapID != z.ID || !reflect.DeepEqual(linked.Type, excused) {
 		t.Fatalf("approval failed to replace QR attendance with the configured excuse: %+v", linked)
 	}
-	if _, err = s.write(request, st, scanner, 2, ids, "scan", input, "legacy-qr-after-zap"); errorCode(err) != "attendance_linked_to_zap" {
+	if _, err = s.write(request, st, scanner, 2, ids, "scan", input, "legacy-qr-after-zap"); errorCode(err) != "attendance_already_recorded" {
 		t.Fatal("scanning overwrote a linked zap mark", err)
 	}
 	if got := st.Entries[key(days[0].ID, 7)]; !reflect.DeepEqual(got, linked) {

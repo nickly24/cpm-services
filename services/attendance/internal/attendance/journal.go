@@ -47,6 +47,9 @@ func (s *Server) setMark(ctx context.Context, st *State, a Identity, d, day int6
 	}
 	k := key(day, m.AccountID)
 	old, exists := st.Entries[k]
+	if scan && exists && !old.Deleted {
+		return nil, conflict("attendance_already_recorded")
+	}
 	if old.ZapID != nil && !old.Deleted {
 		return nil, conflict("attendance_linked_to_zap")
 	}

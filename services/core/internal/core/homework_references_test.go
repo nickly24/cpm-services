@@ -68,3 +68,47 @@ func TestHomeworkReferencesForeignAccountCannotReceiveClass(t *testing.T) {
 		t.Fatal("foreign profile disclosed", w.Code, w.Body.String())
 	}
 }
+
+func TestHomeworkReferencesProfileIDLookupIsScopedAndStudentOnly(t *testing.T) {
+	for _, found := range []bool{true, false} {
+		rows := [][]driver.Value{}
+		if found {
+			rows = [][]driver.Value{{int64(10), int64(21), "student"}}
+		}
+		c := &ratingSnapshotConnector{queries: []ratingSnapshotQuery{
+			{contains: []string{"d.organization_id=? AND d.id=?"}, args: []int64{1, 2}, columns: []string{"id"}, rows: [][]driver.Value{{int64(2)}}},
+			{contains: []string{"m.organization_id=oa.organization_id AND m.division_id=?", "a.role='student' AND a.ref_id IN (?)", "a.id account_id,a.ref_id profile_id"}, args: []int64{1, 2, 21}, columns: []string{"account_id", "profile_id", "role"}, rows: rows},
+		}}
+		if found {
+			c.queries = append(c.queries, ratingSnapshotQuery{contains: []string{"g.organization_id=? AND g.division_id=?"}, args: []int64{1, 2}, columns: []string{"id", "name", "proctor_account_id"}})
+		}
+		db := sql.OpenDB(c)
+		s := &Server{DB: db, InternalKey: strings.Repeat("k", 32)}
+		r := httptest.NewRequest("POST", "/", strings.NewReader(`{"organization_id":1,"division_id":2,"profile_ids":[21]}`))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("X-Service-Key", s.InternalKey)
+		w := httptest.NewRecorder()
+		s.homeworkReferences(w, r)
+		db.Close()
+		want := 404
+		if found {
+			want = 200
+		}
+		if w.Code != want || len(c.queries) != 0 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+}
+func TestHomeworkReferencesRejectsAmbiguousProfileFilters(t *testing.T) {
+	s := &Server{InternalKey: strings.Repeat("k", 32)}
+	for _, body := range []string{`{"organization_id":1,"division_id":2,"profile_ids":[21],"account_ids":[10]}`, `{"organization_id":1,"division_id":2,"profile_ids":[21,21]}`, `{"organization_id":1,"division_id":2,"profile_ids":[0]}`} {
+		r := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("X-Service-Key", s.InternalKey)
+		w := httptest.NewRecorder()
+		s.homeworkReferences(w, r)
+		if w.Code != 400 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+}

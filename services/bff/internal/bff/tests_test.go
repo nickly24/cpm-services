@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -11,6 +12,7 @@ import (
 func TestTestsRoutesStayInSelectedCabinet(t *testing.T) {
 	id := "0123456789abcdef01234567"
 	var seenPath, seenKey, seenTarget string
+	var seenQuery url.Values
 	calls := 0
 	persistedDivision := 1001
 	owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +34,7 @@ func TestTestsRoutesStayInSelectedCabinet(t *testing.T) {
 		seenPath = r.URL.Path
 		seenKey = r.Header.Get("Idempotency-Key")
 		seenTarget = r.URL.Query().Get("target_division_id")
+		seenQuery = r.URL.Query()
 		if r.Method == "GET" && (strings.Contains(r.URL.Path, "/attempts/") || strings.Contains(r.URL.Path, "/submissions/")) {
 			json.NewEncoder(w).Encode(map[string]any{"status": true, "data": map[string]any{"division_id": persistedDivision}})
 			return
@@ -74,6 +77,8 @@ func TestTestsRoutesStayInSelectedCabinet(t *testing.T) {
 	revision = identity.Revision
 	for _, tc := range []struct{ method, path, up string }{
 		{"GET", "catalog", "/v1/tests/divisions/1001/tests"},
+		{"GET", "catalog?view=admin&limit=6&offset=12&q=право&status=hidden&date_from=2026-10-01&date_to=2026-10-20&include_external=true", "/v1/tests/divisions/1001/tests"},
+		{"GET", "bank?view=admin&limit=6&offset=12&is_archived=all&include_external=false", "/v1/tests/bank"},
 		{"GET", "catalog-with-access", "/v1/tests/divisions/1001/catalog-with-access"},
 		{"GET", "bank", "/v1/tests/bank"},
 		{"POST", id + "/copy", "/v1/tests/divisions/1001/tests/" + id + "/copy"},
@@ -89,10 +94,18 @@ func TestTestsRoutesStayInSelectedCabinet(t *testing.T) {
 		if w.Code != 200 || seenPath != tc.up {
 			t.Fatalf("route %s: %d %s", tc.path, w.Code, seenPath)
 		}
+		if strings.Contains(tc.path, "view=admin") {
+			original, _ := url.Parse(tc.path)
+			for key, values := range original.Query() {
+				if seenQuery.Get(key) != values[0] {
+					t.Fatalf("catalogue query lost %s: %s", key, seenQuery.Get(key))
+				}
+			}
+		}
 		if seenKey != "unique-create-key-123" {
 			t.Fatal("idempotency key lost")
 		}
-		if tc.path == "bank" && seenTarget != "1001" {
+		if strings.HasPrefix(tc.path, "bank") && seenTarget != "1001" {
 			t.Fatal("bank actions lacked selected division")
 		}
 	}

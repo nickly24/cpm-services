@@ -38,6 +38,7 @@ type Peers interface {
 	Identify(context.Context, string) (Identity, error)
 	Division(context.Context, int64, int64) (string, error)
 	Refs(context.Context, int64, int64, []int64, *int64) (References, error)
+	StudentProfile(context.Context, int64, int64, int64) (Member, error)
 	School(context.Context, string, int64) error
 	Schools(context.Context, string) ([]SchoolReference, error)
 	OwnSchool(context.Context, string) (*int64, error)
@@ -267,4 +268,27 @@ func (p *HTTPPeers) Schools(ctx context.Context, token string) ([]SchoolReferenc
 		}
 	}
 	return nil, bad("reference_limit_exceeded")
+}
+
+// Resolve the public profile QR in the selected organization/division only.
+func (p *HTTPPeers) StudentProfile(ctx context.Context, o, d, profile int64) (Member, error) {
+	var out struct {
+		Status bool       `json:"status"`
+		Data   References `json:"data"`
+	}
+	e := p.call(ctx, "POST", p.CoreURL+"/internal/core/homework-references", "", map[string]any{"organization_id": o, "division_id": d, "profile_ids": []int64{profile}}, &out, true)
+	if e != nil {
+		if e == missing {
+			return Member{}, &APIError{404, "student_not_in_division"}
+		}
+		return Member{}, e
+	}
+	if !out.Status || out.Data.OrganizationID != o || out.Data.DivisionID != d || len(out.Data.Members) != 1 {
+		return Member{}, unavailable
+	}
+	m := out.Data.Members[0]
+	if m.ProfileID != profile || m.AccountID < 1 || m.Role != "student" {
+		return Member{}, unavailable
+	}
+	return m, nil
 }

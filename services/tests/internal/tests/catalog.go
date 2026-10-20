@@ -135,6 +135,9 @@ func catalogFilter(r *http.Request, a Actor, d int64, bank bool) (bson.M, int64,
 }
 
 func (s *Server) list(r *http.Request, a Actor, d int64, bank bool) (any, int, error) {
+	if r.URL.Query().Get("view") == "admin" {
+		return s.adminCatalog(r, a, d, bank)
+	}
 	filter, limit, offset, e := catalogFilter(r, a, d, bank)
 	if e != nil {
 		return nil, 0, e

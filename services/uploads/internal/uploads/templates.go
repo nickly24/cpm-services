@@ -70,6 +70,8 @@ func (s *Server) template(w http.ResponseWriter, r *http.Request, a Actor, sc Sc
 			ext, ct = "json", "application/json"
 		case "online_test_pad":
 			ext, ct = "js", "text/javascript"
+		case "question_table":
+			ext, ct = "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 		default:
 			return api(400, "invalid_template_format")
 		}

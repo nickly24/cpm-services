@@ -67,8 +67,9 @@ def main():
     qr=student.request(f"attendance/divisions/1002/class-days/{day['id']}/qr",{})['value']
     expect(qr['qr'].startswith('attendance-qr-v1.'),'signed day/division-bound QR through cookie BFF')
     admin.read('/calendars')
-    scanned=admin.write(f"/divisions/1002/class-days/{day['id']}/scan",{'qr':qr['qr']})['value']
-    expect(scanned['id']==mark['id'] and scanned['type']['scan_default'],'signed scan updates same mark using configured default')
+    admin.write(f"/divisions/1002/class-days/{day['id']}/scan",{'qr':qr['qr']},code=409)
+    scanned=next(e for e in admin.read(f"/divisions/1002/class-days/{day['id']}/attendance")['entries'] if e['account_id']==mark['account_id'])
+    expect(scanned==mark,'duplicate signed scan keeps the existing manual mark unchanged')
     admin.write(f"/divisions/1002/class-days/{day['id']}/scan",{'qr':qr['qr']+'x'},code=400)
     admin.write(f"/divisions/1001/class-days/{day['id']}/scan",{'qr':qr['qr']},code=400)
     admin.write(f"/divisions/1002/attendance-types/{typ['id']}",{},'DELETE')

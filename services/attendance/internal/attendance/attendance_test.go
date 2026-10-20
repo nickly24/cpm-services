@@ -91,6 +91,23 @@ func (p *testPeers) Refs(ctx context.Context, o, d int64, ids []int64, g *int64)
 	}
 	return r, nil
 }
+func (p *testPeers) StudentProfile(ctx context.Context, o, d, profile int64) (Member, error) {
+	account := int64(0)
+	if profile == 700 {
+		account = 7
+	}
+	if profile == 600 {
+		account = 6
+	}
+	if account == 0 {
+		return Member{}, &APIError{404, "student_not_in_division"}
+	}
+	refs, e := p.Refs(ctx, o, d, []int64{account}, nil)
+	if e != nil {
+		return Member{}, e
+	}
+	return refs.Members[0], nil
+}
 func (p *testPeers) School(ctx context.Context, token string, id int64) error {
 	if id != 31 {
 		return missing
@@ -543,15 +560,15 @@ func TestMySQLHTTPJournalScanAndGuard(t *testing.T) {
 	var mark Entry
 	parse(call("scanner", "POST", path+"/scan", map[string]any{"qr": qr.QR}, 200), &mark)
 	firstID := mark.ID
-	parse(call("journal_editor", "POST", path+"/scan", map[string]any{"qr": qr.QR}, 200), &mark)
+	call("journal_editor", "POST", path+"/scan", map[string]any{"qr": qr.QR}, 409)
 	if mark.ID != firstID {
 		t.Fatal("attendance editor scan duplicated mark")
 	}
-	parse(call("scanner", "POST", path+"/scan", map[string]any{"qr": qr.QR}, 200), &mark)
+	call("scanner", "POST", path+"/scan", map[string]any{"qr": qr.QR}, 409)
 	if mark.ID != firstID {
 		t.Fatal("scan duplicated mark")
 	}
-	call("scanner", "POST", path+"/scan", map[string]any{"qr": "7"}, 400)
+	call("scanner", "POST", path+"/scan", map[string]any{"qr": "7"}, 404)
 	call("scanner", "GET", "/v1/attendance/divisions/2/attendance-report?date_from=2026-10-08&date_to=2026-10-08", nil, 403)
 	call("student", "GET", path+"/attendance?account_id=6", nil, 403)
 	call("admin", "DELETE", path, struct{}{}, 409)

@@ -401,12 +401,16 @@ def main(faults):
         submission2, frozen2, _, _, _ = grade(student2, source, qs, answers, 1002)
         copied_sub, copied_hash, copied_expected, _, _ = grade(student2, independent, qs, answers, 1002)
 
-        # Every legacy non-trigger is checked separately rather than hiding one in a large save.
+        # Non-triggers are checked separately. Text alias addition is now a trigger.
         no_regrade(admin, tid, submission, lambda b: b.update(title=b['title'] + ' renamed'))
         no_regrade(admin, tid, submission, lambda b: b['questions'][0].update(text='Уточнённый текст'))
         no_regrade(admin, tid, submission, lambda b: b['questions'][0]['answers'][0].update(text='Уточнённый вариант'))
         no_regrade(admin, tid, submission, lambda b: b['questions'].reverse())
-        no_regrade(admin, tid, submission, lambda b: next(q for q in b['questions'] if q['question_id'] == 3)['correct_answers'].append('Столица РФ'))
+        regrade(admin, student, tid, submission, frozen, expected,
+                lambda b: next(q for q in b['questions'] if q['question_id'] == 3)['correct_answers'].append('Столица РФ'))
+        flow.wait_ready(submission2, student2, expected['score'])
+        assert_db(submission2, frozen2, expected, 1002)
+        assert_db(copied_sub, copied_hash, copied_expected, 1002)
         new_question = {'question_id': 4, 'type': 'text', 'text': 'Новый вопрос', 'points': 100,
                         'answers': [], 'correct_answers': ['новый']}
         no_regrade(admin, tid, submission, lambda b: b['questions'].append(copy.deepcopy(new_question)))

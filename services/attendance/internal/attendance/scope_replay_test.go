@@ -205,7 +205,8 @@ func TestMySQLProctorReplayAfterUnassignAndGroupMove(t *testing.T) {
 	call("proctor", http.MethodDelete, path+"/attendance/7", unmarkBody, "scope-unmark", 403)
 	var qr QRResult
 	parse(call("student", http.MethodPost, path+"/qr", []byte("{}"), "", 200), &qr)
-	scanBody := encode(5, map[string]string{"qr": qr.QR})
+	call("proctor", http.MethodDelete, path+"/attendance/7", encode(5, struct{}{}), "scope-before-scan", 200)
+	scanBody := encode(6, map[string]string{"qr": qr.QR})
 	scanned := call("proctor", http.MethodPost, path+"/scan", scanBody, "scope-scan", 200)
 	// Receipt replay does not reverify a once-valid QR after key rotation/expiry.
 	s.QRKey = []byte(strings.Repeat("r", 32))
@@ -214,7 +215,7 @@ func TestMySQLProctorReplayAfterUnassignAndGroupMove(t *testing.T) {
 	}
 	p.Assigned = false
 	call("proctor", http.MethodPost, path+"/scan", scanBody, "scope-scan", 403)
-	if _, revision, e := s.Store.Read(context.Background(), o); e != nil || revision != 6 {
+	if _, revision, e := s.Store.Read(context.Background(), o); e != nil || revision != 7 {
 		t.Fatal("denied receipt replays mutated state", revision, e)
 	}
 }

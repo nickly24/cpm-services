@@ -149,12 +149,9 @@ func (s *Server) write(r *http.Request, st *State, a Identity, d int64, ids map[
 		if !a.journal(d, true) && !a.can(d, "scan", true) {
 			return nil, denied
 		}
-		c, e := s.verifyQR(in.QR)
+		account, e := s.scanAccount(ctx, st, a, d, ids["day"], in.QR)
 		if e != nil {
 			return nil, e
-		}
-		if c.OrganizationID != a.User.OrganizationID || c.DivisionID != d || c.DayID != ids["day"] {
-			return nil, bad("qr_scope_mismatch")
 		}
 		typ := int64(0)
 		for _, t := range st.Types {
@@ -165,7 +162,7 @@ func (s *Server) write(r *http.Request, st *State, a Identity, d int64, ids map[
 		if typ == 0 {
 			return nil, conflict("scan_default_type_required")
 		}
-		return s.setMark(ctx, st, a, d, ids["day"], Mark{c.AccountID, typ}, op, true)
+		return s.setMark(ctx, st, a, d, ids["day"], Mark{account, typ}, op, true)
 	case "zap-create":
 		var in ZapInput
 		if e := decodeJSON(b, &in); e != nil {

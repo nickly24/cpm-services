@@ -66,9 +66,10 @@ func (s *Server) templateResponse(w http.ResponseWriter, r *http.Request, base, 
 	contentType, _, e := mime.ParseMediaType(res.Header.Get("Content-Type"))
 	testsJSON := r.URL.Path == "/bff/uploads/templates/tests.json"
 	otp := testsJSON && r.URL.Query().Get("format") == "online_test_pad"
-	jsonTemplate := testsJSON && !otp && contentType == "application/json" && validTestTemplate(data, false)
+	xlsxTemplate := testsJSON && r.URL.Query().Get("format") == "question_table" && contentType == xlsxType && bytes.HasPrefix(data, []byte("PK\x03\x04"))
+	jsonTemplate := testsJSON && !otp && r.URL.Query().Get("format") != "question_table" && contentType == "application/json" && validTestTemplate(data, false)
 	jsTemplate := otp && contentType == "text/javascript" && validTestTemplate(data, true)
-	if e != nil || testsJSON && !jsonTemplate && !jsTemplate || !testsJSON && contentType != xlsxType && contentType != "text/csv" {
+	if e != nil || testsJSON && !jsonTemplate && !jsTemplate && !xlsxTemplate || !testsJSON && contentType != xlsxType && contentType != "text/csv" {
 		failure(w, 502, "invalid_upstream_response")
 		return
 	}

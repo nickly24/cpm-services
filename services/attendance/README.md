@@ -54,7 +54,7 @@ OpenAPI: `GET /openapi.json`; process/DB health: `/health/live`, `/health/ready`
 | GET | `/divisions/{division}/attendance-report` | date_from/date_to, optional account_id/group_id; days/entries/counts_by_type_code |
 | GET | `/divisions/{division}/students` | разрешённый live roster; student только себя, proctor назначенную группу |
 | POST | `/divisions/{division}/class-days/{day}/qr` | собственный student, `{}` → signed QR + expires_at (3 мин) |
-| POST | `/divisions/{division}/class-days/{day}/scan` | `{qr}` → тип с настроенным scan_default, обычные scope/guard проверки |
+| POST | `/divisions/{division}/class-days/{day}/scan` | `{qr}` с ID профиля ученика → тип с настроенным scan_default; повторная отметка =409 без перезаписи. Старый подписанный QR также поддержан. |
 | GET/POST | `/divisions/{division}/zaps` | scoped заявки / `{account_id?: для staff,text,dates:[YYYY-MM-DD],images:[{mime,data base64}]}` |
 | GET | `/divisions/{division}/zaps/{zap}` | `{zap,image_count}`, без незащищённого URL вложений |
 | GET | `/divisions/{division}/zaps/{zap}/images/{image}` | owner/zaps.view, 1-based index, image/png или image/jpeg binary |
@@ -72,7 +72,7 @@ TypeInput: `{code,name,color,mark,sort_order,is_active,counts_as_present,counts_
 
 ## Права и хранилище
 
-Admin — все division своей текущей организации. Staff — permissions конкретного division из актуального introspect, даже если active division другой. Проктор — только группа с подтверждённым core назначением; supervisor — journal read своего division; student — только свои записи. Scan-only staff может использовать только scan_default через подписанный QR и читать нужные дни/тип/состав/отметки дня, не произвольный ручной тип или общий отчёт. Право calendar.view не открывает journal/roster/zaps. Опубликованный organization calendar доступен другим участникам org; private только участникам и authorized editors.
+Admin — все division своей текущей организации. Staff — permissions конкретного division из актуального introspect, даже если active division другой. Проктор — только группа с подтверждённым core назначением; supervisor — journal read своего division; student — только свои записи. Scan-only staff может использовать только scan_default через QR с ID профиля (или прежний подписанный QR) и читать нужные дни/тип/состав/отметки дня, не произвольный ручной тип или общий отчёт. Право calendar.view не открывает journal/roster/zaps. Опубликованный organization calendar доступен другим участникам org; private только участникам и authorized editors.
 
 Own MySQL aggregate по org под SELECT FOR UPDATE, параметризованный SQL, snapshots/audit и receipts в той же транзакции. Нет FK к чужим таблицам. Ограничения dev: document32MiB, calendars100, rooms1000, lessons10000, days5000, entries50000, types2000,zaps5000. Это ограниченный single-aggregate этап, сериализующий writes организации; archive/audit snapshots содержат изображения и требуют будущей политики хранения/backup, масштабирование и blob-store отделяются до production.
 
@@ -83,3 +83,5 @@ Read-only core references используют существующие `/intern
 Один владелец production record после cutover. Импортировать два legacy журнала с provenance отдельно, не склеивать account+date без division. Маппинг legacy profile→account подтверждать core; старые числовые rate и type IDs преобразовать в отдельные versioned codes каждого division с сохранением исходного значения. `is_for_all=false` без старой адресности требует явного решения миграции, не автоматически «все группы». Отгулы/защищённые файлы/даты и уже записанные marks перенести вместе с source ID mapping. Dry run/reconciliation, заморозка старых writes, единый import, сверка, переключение BFF; никаких dual-write. Старые core endpoints и таблицы в этой работе сохранены. Production migration отдельно.
 
 Свежая приёмка09.10.2026: Attendance HTTP178, Core metadata88, Uploads attachments290 HTTP/envelope/content assertions, browser journal8 с5 XLSX, BFF/UI отгулы15 и scan4 с3 XLSX. U04 завершён отдельно: Native39/5 реальных HTTP-сценариев/925 assertions и BFF296/UI535/57/15 actual browser сценариев lost-reply/reload/relogin/cross-tab без повторных записей. Все проверки выполнялись в dev на собственных fixtures. Точные отчёты и текущий handoff: [handoff](docs/acceptance-handoff-2026-10-09.md). Общий build/runtime UI/Core/BFF выполняет их единый владелец.
+
+Постоянный QR профиля, преобразование profile_id→account_id, границы подразделения и обработка дублей: [контракт сканирования](docs/profile-scan.md).
