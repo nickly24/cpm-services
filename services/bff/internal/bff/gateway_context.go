@@ -39,11 +39,19 @@ func (s *Server) attachGatewayContext(r *http.Request, body []byte) error {
 		key, audience = s.config.GatewayKey, "tests"
 	} else if s.config.Homework != "" && base == s.config.Homework {
 		key, audience = s.config.HomeworkGatewayKey, "homework"
+	} else if s.config.Attendance != "" && base == s.config.Attendance {
+		key, audience = s.config.AttendanceGatewayKey, "attendance"
 	}
 	if key == "" {
 		return nil
 	}
 	user, ok := r.Context().Value(gatewayIdentityKey{}).(json.RawMessage)
+	if audience == "attendance" {
+		user, ok = attendanceGatewayIdentity(r)
+		if !ok {
+			return nil
+		}
+	}
 	if !ok || !json.Valid(user) || len(user) > 8192 || len(key) < 32 {
 		return errors.New("gateway context unavailable")
 	}

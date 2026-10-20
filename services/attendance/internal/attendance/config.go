@@ -12,14 +12,17 @@ import (
 )
 
 type Config struct {
-	Listen, DSN, AuthURL, CoreURL, Key string
-	QRKey                              []byte
+	Listen, DSN, AuthURL, CoreURL, Key, GatewayKey string
+	QRKey                                          []byte
 }
 
 func LoadConfig() (Config, error) {
-	c := Config{Listen: os.Getenv("ATTENDANCE_LISTEN_ADDR"), AuthURL: os.Getenv("ATTENDANCE_AUTH_URL"), CoreURL: os.Getenv("ATTENDANCE_CORE_URL"), Key: os.Getenv("AUTH_INTERNAL_KEY"), QRKey: []byte(os.Getenv("ATTENDANCE_QR_KEY"))}
+	c := Config{GatewayKey: os.Getenv("BFF_ATTENDANCE_CONTEXT_KEY"), Listen: os.Getenv("ATTENDANCE_LISTEN_ADDR"), AuthURL: os.Getenv("ATTENDANCE_AUTH_URL"), CoreURL: os.Getenv("ATTENDANCE_CORE_URL"), Key: os.Getenv("AUTH_INTERNAL_KEY"), QRKey: []byte(os.Getenv("ATTENDANCE_QR_KEY"))}
 	if c.Listen == "" {
 		c.Listen = "127.0.0.1:8013"
+	}
+	if c.GatewayKey != "" && (len(c.GatewayKey) < 32 || c.GatewayKey == c.Key || c.GatewayKey == string(c.QRKey) || c.GatewayKey == os.Getenv("BFF_TESTS_CONTEXT_KEY") || c.GatewayKey == os.Getenv("BFF_HOMEWORK_CONTEXT_KEY")) {
+		return c, errors.New("distinct Attendance gateway key required")
 	}
 	if len(c.Key) < 32 || len(c.QRKey) < 32 || c.Key == string(c.QRKey) {
 		return c, errors.New("distinct service and QR keys required")

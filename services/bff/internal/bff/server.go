@@ -24,7 +24,7 @@ type Config struct {
 	AllowedOrigins                                                                  []string
 	Secure                                                                          bool
 	RedisAddress, RedisPassword                                                     string
-	GatewayKey, HomeworkGatewayKey                                                  string
+	GatewayKey, HomeworkGatewayKey, AttendanceGatewayKey                            string
 }
 type Identity struct {
 	User          json.RawMessage `json:"user"`
@@ -395,6 +395,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		v.identity.User = current.User
 		v.identity.Organizations = current.Organizations
 		ctx = withGatewayIdentity(ctx, current.User)
+		ctx = context.WithValue(ctx, attendanceIdentityKey{}, append(json.RawMessage(nil), data...))
 		r = r.WithContext(ctx)
 		if path == "auth/me" && r.Method == "GET" {
 			identity(w, v)

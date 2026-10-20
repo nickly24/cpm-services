@@ -38,7 +38,7 @@ func main() {
 	db.SetMaxOpenConns(12)
 	db.SetMaxIdleConns(6)
 	db.SetConnMaxLifetime(3 * time.Minute)
-	s := attendance.Server{Store: attendance.Store{DB: db}, Peers: attendance.NewPeers(cfg.AuthURL, cfg.CoreURL, cfg.Key), QRKey: cfg.QRKey}
+	s := attendance.Server{Store: attendance.Store{DB: db}, Peers: attendance.NewPeers(cfg.AuthURL, cfg.CoreURL, cfg.Key), QRKey: cfg.QRKey, GatewayKey: cfg.GatewayKey}
 	httpServer := http.Server{Addr: cfg.Listen, Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 25 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()

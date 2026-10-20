@@ -124,6 +124,17 @@ func OpenAPI() map[string]any {
 			if rt.Input != nil {
 				input = schema(reflect.TypeOf(rt.Input))
 			}
+			if rt.Kind == "cells" {
+				input["required"] = []string{"cells"}
+				cell := schema(reflect.TypeOf(CellEdit{}))
+				cell["required"] = []string{"class_day_id", "account_id", "attendance_type_id"}
+				properties := cell["properties"].(map[string]any)
+				for _, id := range []string{"class_day_id", "account_id"} {
+					properties[id] = map[string]any{"type": "integer", "minimum": 1}
+				}
+				properties["attendance_type_id"] = map[string]any{"type": "integer", "minimum": 0, "description": "0 erases an existing mark; otherwise active type in this division"}
+				input["properties"].(map[string]any)["cells"] = map[string]any{"type": "array", "minItems": 1, "maxItems": maxCellBatch, "items": cell, "description": "Unique (class_day_id, account_id) pairs; atomic command, one revision/receipt/audit. Zap-linked marks are protected."}
+			}
 			if rt.Kind != "qr" {
 				parameters = append(parameters, map[string]any{"name": "Idempotency-Key", "in": "header", "required": true, "schema": map[string]any{"type": "string", "minLength": 8, "maxLength": 100}})
 				op["parameters"] = parameters

@@ -16,9 +16,10 @@ import (
 )
 
 type Server struct {
-	Store Store
-	Peers Peers
-	QRKey []byte
+	Store      Store
+	Peers      Peers
+	QRKey      []byte
+	GatewayKey string
 }
 type Route struct {
 	Pattern string
@@ -40,6 +41,7 @@ func routes() []Route {
 		{"GET " + p + "/class-days/{day}/attendance", "entries", nil}, {"POST " + p + "/class-days/{day}/attendance", "mark", Mark{}}, {"DELETE " + p + "/class-days/{day}/attendance/{account}", "unmark", struct{}{}}, {"GET " + p + "/attendance-report", "report", nil},
 		{"GET " + p + "/students", "students", nil},
 		{"GET " + p + "/journal-workspace", "journal-workspace", nil},
+		{"POST " + p + "/attendance-cells/batch", "cells", CellBatch{}},
 		{"GET " + p + "/schedule-references", "schedule-references", nil},
 		{"POST " + p + "/class-days/{day}/qr", "qr", nil}, {"POST " + p + "/class-days/{day}/scan", "scan", struct {
 			QR string `json:"qr"`
@@ -205,7 +207,10 @@ func (s *Server) Handler() http.Handler {
 	})
 }
 func (s *Server) serve(w http.ResponseWriter, r *http.Request, rt Route) {
-	a, e := s.Peers.Identify(r.Context(), r.Header.Get("Authorization"))
+	a, present, e := s.gatewayIdentity(r)
+	if !present {
+		a, e = s.Peers.Identify(r.Context(), r.Header.Get("Authorization"))
+	}
 	if e != nil {
 		fail(w, e)
 		return
@@ -239,7 +244,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, rt Route) {
 			allowed = a.can(d, "schedule", true)
 		case "type", "day":
 			allowed = a.can(d, "attendance", true)
-		case "mark", "unmark":
+		case "mark", "unmark", "cells":
 			allowed = a.journal(d, true)
 		case "scan":
 			allowed = a.journal(d, true) || a.can(d, "scan", true)
@@ -255,7 +260,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, rt Route) {
 			return
 		}
 	}
-	if d > 0 {
+	if d > 0 && !s.combinedCells(rt.Kind) {
 		if _, e = s.Peers.Division(r.Context(), a.User.OrganizationID, d); e != nil {
 			fail(w, e)
 			return
@@ -369,7 +374,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, rt Route) {
 			}
 		}
 	}
-	result, e := s.Store.mutate(r.Context(), a, *envelope.Expected, k, r.Method+" "+r.URL.Path, raw, s.replayAuthorization(r, a, d, ids, rt.Kind), func(st *State) (any, error) { return s.write(r, st, a, d, ids, rt.Kind, envelope.Data, k) }, projectedCell(rt.Kind, ids, envelope.Data), func() (commandScope, error) {
+	result, e := s.Store.mutate(r.Context(), a, *envelope.Expected, k, r.Method+" "+r.URL.Path, raw, s.replayCellAuthorization(r, a, d, ids, rt.Kind), func(st *State) (any, error) { return s.writeCellCommand(r, st, a, d, ids, rt.Kind, envelope.Data, k) }, projectedCell(rt.Kind, ids, envelope.Data), func() (commandScope, error) {
 		return scopeAfterWrite(r.Method+" "+r.URL.Path, rt.Kind, d, envelope.Data)
 	})
 	if e != nil {

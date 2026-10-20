@@ -7,6 +7,9 @@ import (
 )
 
 func (s *Server) target(ctx context.Context, a Identity, d, u int64, scan bool) (Member, error) {
+	if m, ok := cachedCellTarget(ctx, a, d, u); ok {
+		return m, nil
+	}
 	refs, e := s.Peers.Refs(ctx, a.User.OrganizationID, d, []int64{u}, nil)
 	if e != nil {
 		return Member{}, e
@@ -53,7 +56,11 @@ func (s *Server) setMark(ctx context.Context, st *State, a Identity, d, day int6
 	if old.ZapID != nil && !old.Deleted {
 		return nil, conflict("attendance_linked_to_zap")
 	}
-	if e = s.Peers.Guard(ctx, a.User.OrganizationID, d, m.AccountID, op); e != nil {
+	_, guarded := cachedCellTarget(ctx, a, d, m.AccountID)
+	if !guarded {
+		e = s.Peers.Guard(ctx, a.User.OrganizationID, d, m.AccountID, op)
+	}
+	if e != nil {
 		return nil, e
 	}
 	id := old.ID

@@ -84,6 +84,8 @@ func outputShape(kind, method string) any {
 			return Deleted{}
 		}
 		return Day{}
+	case "cells":
+		return CellBatchResult{}
 	case "mark", "scan":
 		return Entry{}
 	case "unmark":

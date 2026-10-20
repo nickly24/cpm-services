@@ -142,6 +142,7 @@ func (s *Server) Handler() http.Handler {
 	})
 	s.routes(mux)
 	mux.HandleFunc("POST /internal/core/attendance/history-reservations", s.attendanceHistory)
+	mux.HandleFunc("POST /internal/core/attendance/cell-targets", s.attendanceCells)
 	mux.HandleFunc("POST /internal/core/test-references", s.testReferences)
 	mux.HandleFunc("POST /internal/core/exam-references", s.examReferences)
 	mux.HandleFunc("GET /internal/core/cards-context", s.cardsContext)

@@ -137,13 +137,13 @@ func (s Store) mutate(ctx context.Context, a Identity, expected int64, key, path
 				delete(st.Types, k)
 			}
 		}
-		_, projection.existed = st.Entries[projection.entryKey()]
+		projection.existing = len(st.Entries)
 	}
 	value, e := fn(&st)
 	if e != nil {
 		return Result{}, e
 	}
-	if projection != nil && !projection.existed && projection.entries >= 50000 {
+	if projection != nil && projection.entries+len(st.Entries)-projection.existing > 50000 {
 		return Result{}, bad("dev_capacity_exceeded")
 	}
 	result := Result{rev + 1, value}

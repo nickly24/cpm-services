@@ -5,70 +5,106 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 )
 
-// A cell command needs one day, one type and one previous entry. The organization
-// revision/lock and full immutable audit stay unchanged; unrelated state never
-// crosses the database connection for this command.
+// Fetch and update only the bounded cells, days and types needed by a command.
+// The organization lock/CAS, receipt and full immutable audit are unchanged.
 type cellProjection struct {
 	day, account, typ int64
-	entries           int
-	existed           bool
+	cells             []CellEdit
+	entries, existing int
 }
 
-func (p *cellProjection) entryKey() string         { return key(p.day, p.account) }
 func cellPath(collection string, id string) string { return "$." + collection + ".\"" + id + "\"" }
+func (p *cellProjection) edits() []CellEdit {
+	if p.cells != nil {
+		return p.cells
+	}
+	return []CellEdit{{p.day, p.account, &p.typ}}
+}
 func projectedCell(kind string, ids map[string]int64, body json.RawMessage) *cellProjection {
-	if kind == "unmark" {
-		return &cellProjection{day: ids["day"], account: ids["account"]}
-	}
-	if kind != "mark" {
+	if kind != "mark" && kind != "unmark" && kind != "cells" {
 		return nil
 	}
-	var m Mark
-	if decodeJSON(body, &m) != nil || m.AccountID < 1 || m.TypeID < 1 {
+	cells, err := cellEdits(kind, ids, body)
+	if err != nil {
 		return nil
 	}
-	return &cellProjection{day: ids["day"], account: m.AccountID, typ: m.TypeID}
+	return &cellProjection{cells: cells}
 }
 func (p *cellProjection) read(ctx context.Context, tx *sql.Tx, organization int64) ([]byte, int64, error) {
+	collections := map[string]map[string]bool{"days": {}, "types": {}, "entries": {}}
+	for _, c := range p.edits() {
+		collections["days"][fmt.Sprint(c.DayID)] = true
+		collections["types"][fmt.Sprint(*c.TypeID)] = true
+		collections["entries"][key(c.DayID, c.AccountID)] = true
+	}
+	query := `SELECT revision,JSON_OBJECT('next_id',JSON_EXTRACT(document,'$.next_id')`
+	args := []any{}
+	for _, collection := range []string{"days", "types", "entries"} {
+		query += ",'" + collection + "',JSON_OBJECT("
+		ids := []string{}
+		for id := range collections[collection] {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		parts := []string{}
+		for _, id := range ids {
+			parts = append(parts, "?,JSON_EXTRACT(document,?)")
+			args = append(args, id, cellPath(collection, id))
+		}
+		query += strings.Join(parts, ",") + ")"
+	}
+	query += `),JSON_LENGTH(document,'$.entries') FROM attendance_state_v1 WHERE organization_id=? FOR UPDATE`
+	args = append(args, organization)
 	var data []byte
 	var revision int64
-	// JSON_OBJECT keeps the existing State shape so all owner validation and
-	// canonical Entry construction are shared with the ordinary write path.
-	err := tx.QueryRowContext(ctx, `SELECT revision,JSON_OBJECT(
- 'next_id',JSON_EXTRACT(document,'$.next_id'),
- 'days',JSON_OBJECT(?,JSON_EXTRACT(document,?)),
- 'types',JSON_OBJECT(?,JSON_EXTRACT(document,?)),
- 'entries',JSON_OBJECT(?,JSON_EXTRACT(document,?))),
- JSON_LENGTH(document,'$.entries') FROM attendance_state_v1 WHERE organization_id=? FOR UPDATE`,
-		fmt.Sprint(p.day), cellPath("days", fmt.Sprint(p.day)), fmt.Sprint(p.typ), cellPath("types", fmt.Sprint(p.typ)), key(p.day, p.account), cellPath("entries", key(p.day, p.account)), organization).Scan(&revision, &data, &p.entries)
+	err := tx.QueryRowContext(ctx, query, args...).Scan(&revision, &data, &p.entries)
 	return data, revision, err
 }
 func (p *cellProjection) persist(ctx context.Context, tx *sql.Tx, organization, revision int64, st *State) error {
-	e, exists := st.Entries[key(p.day, p.account)]
-	if !exists || e.ID < 1 || e.DayID != p.day || e.AccountID != p.account {
-		return unavailable
+	query := `UPDATE attendance_state_v1 SET revision=?,document=JSON_SET(document,'$.next_id',?`
+	args := []any{revision, st.NextID}
+	days := map[int64]bool{}
+	for _, c := range p.edits() {
+		e, ok := st.Entries[key(c.DayID, c.AccountID)]
+		if !ok || e.ID < 1 || e.DayID != c.DayID || e.AccountID != c.AccountID {
+			return unavailable
+		}
+		raw, err := json.Marshal(e)
+		if err != nil {
+			return unavailable
+		}
+		query += ",?,CAST(? AS JSON)"
+		args = append(args, cellPath("entries", key(c.DayID, c.AccountID)), string(raw))
+		days[c.DayID] = true
 	}
-	entry, err := json.Marshal(e)
-	if err != nil {
-		return unavailable
+	ids := []int64{}
+	for id := range days {
+		ids = append(ids, id)
 	}
-	day, ok := st.Days[p.day]
-	if !ok {
-		return unavailable
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	for _, id := range ids {
+		d, ok := st.Days[id]
+		if !ok {
+			return unavailable
+		}
+		raw, err := json.Marshal(d)
+		if err != nil {
+			return unavailable
+		}
+		query += ",?,CAST(? AS JSON)"
+		args = append(args, cellPath("days", fmt.Sprint(id)), string(raw))
 	}
-	d, err := json.Marshal(day)
-	if err != nil {
-		return unavailable
-	}
-	_, err = tx.ExecContext(ctx, `UPDATE attendance_state_v1 SET revision=?,document=JSON_SET(document,
- '$.next_id',?, ?,CAST(? AS JSON), ?,CAST(? AS JSON)) WHERE organization_id=?`, revision, st.NextID, cellPath("entries", key(p.day, p.account)), string(entry), cellPath("days", fmt.Sprint(p.day)), string(d), organization)
-	if err != nil {
+	query += ") WHERE organization_id=?"
+	args = append(args, organization)
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return dbError(err)
 	}
 	var bytes int
-	if err = tx.QueryRowContext(ctx, "SELECT OCTET_LENGTH(document) FROM attendance_state_v1 WHERE organization_id=?", organization).Scan(&bytes); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT OCTET_LENGTH(document) FROM attendance_state_v1 WHERE organization_id=?", organization).Scan(&bytes); err != nil {
 		return dbError(err)
 	}
 	if bytes > 32<<20 {

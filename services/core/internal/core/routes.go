@@ -241,6 +241,19 @@ func openAPI() map[string]any {
 			"503": map[string]string{"description": "Reservation not confirmed; database/runtime unavailable"},
 		},
 	}}
+	cellsInput := schema(reflect.TypeOf(AttendanceCellsRequest{}))
+	cellsInput["required"] = []string{"organization_id", "division_id", "account_ids", "operation_key"}
+	cellsInput["properties"].(map[string]any)["account_ids"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": map[string]any{"type": "integer", "minimum": 1}}
+	paths["/internal/core/attendance/cell-targets"] = map[string]any{"post": map[string]any{
+		"summary":     "Atomic active division/student/group validation and permanent history reservations for up to 100 unique accounts; proctor and group must be supplied together",
+		"security":    []any{map[string]any{"serviceKey": []string{}}},
+		"requestBody": map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": cellsInput}}},
+		"responses": map[string]any{
+			"200": map[string]any{"description": "Committed permanent guards and canonical student names/groups", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"type": "object", "properties": map[string]any{"status": map[string]any{"const": true}, "data": map[string]any{"type": "object", "properties": map[string]any{"organization_id": map[string]any{"type": "integer"}, "division_id": map[string]any{"type": "integer"}, "members": schema(reflect.TypeOf([]AttendanceCellMember{}))}}}}}}},
+			"400": map[string]string{"description": "Invalid, duplicate, unknown, oversized or incomplete DTO"},
+			"401": map[string]string{"description": "Invalid service key"}, "403": map[string]string{"description": "Live proctor assignment or student group mismatch"}, "404": map[string]string{"description": "Active organization/division/student membership missing"}, "415": map[string]string{"description": "application/json required"}, "500": map[string]string{"description": "Database/runtime failure; guards not confirmed"},
+		},
+	}}
 	return map[string]any{"openapi": "3.1.0", "info": map[string]string{"title": "CPM Core", "version": "0.1.0", "description": "Контекст организации из токена. Неадминистратор работает только в выбранном подразделении. Методы PUT полностью заменяют указанные поля DTO."}, "paths": paths, "components": map[string]any{"securitySchemes": map[string]any{"bearerAuth": map[string]string{"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}, "serviceKey": map[string]string{"type": "apiKey", "in": "header", "name": "X-Service-Key"}, "operationGrant": map[string]string{"type": "apiKey", "in": "header", "name": "X-CPM-Operation-Grant"}, "operationDeliveryKey": map[string]string{"type": "apiKey", "in": "header", "name": "X-CPM-Operation-Service-Key"}}}}
 }
 func (s *Server) auditList(r *http.Request, a Actor, d int64) (any, int, error) {

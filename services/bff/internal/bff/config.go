@@ -86,6 +86,10 @@ func LoadConfig() (Config, string, error) {
 	if c.HomeworkGatewayKey != "" && (len(c.HomeworkGatewayKey) < 32 || c.HomeworkGatewayKey == os.Getenv("BFF_TESTS_CONTEXT_KEY")) {
 		return c, "", errors.New("invalid Homework gateway credential")
 	}
+	c.AttendanceGatewayKey = os.Getenv("BFF_ATTENDANCE_CONTEXT_KEY")
+	if c.AttendanceGatewayKey != "" && (len(c.AttendanceGatewayKey) < 32 || c.AttendanceGatewayKey == c.HomeworkGatewayKey || c.AttendanceGatewayKey == os.Getenv("BFF_TESTS_CONTEXT_KEY")) {
+		return c, "", errors.New("invalid Attendance gateway credential")
+	}
 	c.GatewayKey = os.Getenv("BFF_TESTS_CONTEXT_KEY")
 	if c.GatewayKey != "" && len(c.GatewayKey) < 32 {
 		return c, "", errors.New("invalid gateway credential")

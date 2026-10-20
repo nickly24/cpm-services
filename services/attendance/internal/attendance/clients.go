@@ -77,6 +77,9 @@ func (p *HTTPPeers) call(ctx context.Context, method, url, token string, input, 
 	defer res.Body.Close()
 	if res.StatusCode == 401 || res.StatusCode == 403 {
 		if internal {
+			if res.StatusCode == 403 && strings.HasSuffix(url, "/internal/core/attendance/cell-targets") {
+				return denied
+			}
 			return unavailable
 		}
 		return &APIError{401, "invalid_token"}
@@ -291,4 +294,53 @@ func (p *HTTPPeers) StudentProfile(ctx context.Context, o, d, profile int64) (Me
 		return Member{}, unavailable
 	}
 	return m, nil
+}
+
+// Core validates the division, all current target memberships, optional live
+// proctor assignment and permanent history reservations in one transaction.
+func (p *HTTPPeers) CellTargets(ctx context.Context, a Identity, d int64, ids []int64, op string) (map[int64]Member, error) {
+	var proctor, group *int64
+	if !a.can(d, "attendance", true) {
+		grant, ok := a.division(d)
+		if !ok || a.User.Role != "proctor" || grant.GroupID == nil {
+			return nil, denied
+		}
+		proctor = &a.User.AccountID
+		group = grant.GroupID
+	}
+	var out struct {
+		Status bool `json:"status"`
+		Data   struct {
+			OrganizationID int64 `json:"organization_id"`
+			DivisionID     int64 `json:"division_id"`
+			Members        []struct {
+				Member
+				Permanent     bool   `json:"permanent"`
+				ReservationID string `json:"reservation_id"`
+			} `json:"members"`
+		} `json:"data"`
+	}
+	input := map[string]any{"organization_id": a.User.OrganizationID, "division_id": d, "account_ids": ids, "operation_key": op}
+	if proctor != nil {
+		input["proctor_account_id"] = *proctor
+		input["group_id"] = *group
+	}
+	if err := p.call(ctx, "POST", p.CoreURL+"/internal/core/attendance/cell-targets", "", input, &out, true); err != nil {
+		return nil, err
+	}
+	if !out.Status || out.Data.OrganizationID != a.User.OrganizationID || out.Data.DivisionID != d || len(out.Data.Members) != len(ids) {
+		return nil, unavailable
+	}
+	wanted := map[int64]bool{}
+	for _, id := range ids {
+		wanted[id] = true
+	}
+	members := map[int64]Member{}
+	for _, m := range out.Data.Members {
+		if !wanted[m.AccountID] || members[m.AccountID].AccountID != 0 || m.Role != "student" || !m.Permanent || m.ReservationID == "" || group != nil && !same(m.GroupID, group) {
+			return nil, guardMissing
+		}
+		members[m.AccountID] = m.Member
+	}
+	return members, nil
 }

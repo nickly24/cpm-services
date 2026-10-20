@@ -216,6 +216,10 @@ func (s Store) commandReceipt(ctx context.Context, a Identity, key string) (rece
 // today's corrected entry or a newly supplied client target.
 func validateJournalReceipt(e receiptEvidence) error {
 	kind := e.Route.Kind
+	if kind == "cells" {
+		_, err := batchReceiptEntries(e.Original, e.Result, e.Route.Division)
+		return err
+	}
 	if kind != "mark" && kind != "scan" && kind != "unmark" {
 		return nil
 	}
@@ -256,7 +260,7 @@ func commandAllowed(a Identity, d int64, kind string) bool {
 		return a.can(d, "schedule", true)
 	case "type", "day":
 		return a.can(d, "attendance", true)
-	case "mark", "unmark":
+	case "mark", "unmark", "cells":
 		return a.journal(d, true)
 	case "scan":
 		return a.journal(d, true) || a.can(d, "scan", true)
@@ -297,7 +301,7 @@ func (s *Server) authorizeCommandReceipt(r *http.Request, a Identity, evidence r
 			return denied
 		}
 	}
-	if authorize := s.replayAuthorization(r, a, route.Division, route.IDs, route.Kind); authorize != nil {
+	if authorize := s.replayCellAuthorization(r, a, route.Division, route.IDs, route.Kind); authorize != nil {
 		return authorize(evidence.Original, evidence.Result)
 	}
 	return nil
