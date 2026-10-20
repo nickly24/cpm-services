@@ -58,6 +58,9 @@ func dbError(e error) error {
 	return unavailable
 }
 func (s Store) Mutate(ctx context.Context, a Identity, expected int64, key, path string, body []byte, authorizeReplay func(*State, Result) error, fn func(*State) (any, error), scopeBuilders ...func() (commandScope, error)) (Result, error) {
+	return s.mutate(ctx, a, expected, key, path, body, authorizeReplay, fn, nil, scopeBuilders...)
+}
+func (s Store) mutate(ctx context.Context, a Identity, expected int64, key, path string, body []byte, authorizeReplay func(*State, Result) error, fn func(*State) (any, error), projection *cellProjection, scopeBuilders ...func() (commandScope, error)) (Result, error) {
 	o := a.User.OrganizationID
 	tx, e := s.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if e != nil {
@@ -70,7 +73,12 @@ func (s Store) Mutate(ctx context.Context, a Identity, expected int64, key, path
 	}
 	var data []byte
 	var rev int64
-	if e = tx.QueryRowContext(ctx, "SELECT revision,document FROM attendance_state_v1 WHERE organization_id=? FOR UPDATE", o).Scan(&rev, &data); e != nil {
+	if projection != nil {
+		data, rev, e = projection.read(ctx, tx, o)
+	} else {
+		e = tx.QueryRowContext(ctx, "SELECT revision,document FROM attendance_state_v1 WHERE organization_id=? FOR UPDATE", o).Scan(&rev, &data)
+	}
+	if e != nil {
 		return Result{}, dbError(e)
 	}
 	h := hash(append([]byte(path+"\n"), body...))
@@ -112,9 +120,31 @@ func (s Store) Mutate(ctx context.Context, a Identity, expected int64, key, path
 	if json.Unmarshal(data, &st) != nil {
 		return Result{}, unavailable
 	}
+	if projection != nil {
+		// JSON_EXTRACT of a missing map value returns null, not an existing entry.
+		for k, v := range st.Entries {
+			if v.ID == 0 {
+				delete(st.Entries, k)
+			}
+		}
+		for k, v := range st.Days {
+			if v.ID == 0 {
+				delete(st.Days, k)
+			}
+		}
+		for k, v := range st.Types {
+			if v.ID == 0 {
+				delete(st.Types, k)
+			}
+		}
+		_, projection.existed = st.Entries[projection.entryKey()]
+	}
 	value, e := fn(&st)
 	if e != nil {
 		return Result{}, e
+	}
+	if projection != nil && !projection.existed && projection.entries >= 50000 {
+		return Result{}, bad("dev_capacity_exceeded")
 	}
 	result := Result{rev + 1, value}
 	var scope *commandScope
@@ -133,11 +163,20 @@ func (s Store) Mutate(ctx context.Context, a Identity, expected int64, key, path
 	if e != nil {
 		return Result{}, unavailable
 	}
-	if _, e = tx.ExecContext(ctx, "UPDATE attendance_state_v1 SET revision=?,document=? WHERE organization_id=?", rev+1, after, o); e != nil {
+	if projection != nil {
+		e = projection.persist(ctx, tx, o, rev+1, &st)
+	} else {
+		_, e = tx.ExecContext(ctx, "UPDATE attendance_state_v1 SET revision=?,document=? WHERE organization_id=?", rev+1, after, o)
+	}
+	if e != nil {
+		var api *APIError
+		if errors.As(e, &api) {
+			return Result{}, api
+		}
 		return Result{}, dbError(e)
 	}
 	// Immutable revision snapshot makes corrections, deletions and type versions auditable.
-	if _, e = tx.ExecContext(ctx, "INSERT INTO attendance_audit_v1(organization_id,revision,actor_account_id,action,snapshot) VALUES(?,?,?,?,?)", o, rev+1, a.User.AccountID, path, after); e != nil {
+	if _, e = tx.ExecContext(ctx, "INSERT INTO attendance_audit_v1(organization_id,revision,actor_account_id,action,snapshot) SELECT organization_id,revision,?,?,document FROM attendance_state_v1 WHERE organization_id=?", a.User.AccountID, path, o); e != nil {
 		return Result{}, dbError(e)
 	}
 	if _, e = tx.ExecContext(ctx, "INSERT INTO attendance_receipts_v1 VALUES(?,?,?,?,?)", o, a.User.AccountID, key, h, out); e != nil {

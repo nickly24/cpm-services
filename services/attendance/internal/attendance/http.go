@@ -39,6 +39,7 @@ func routes() []Route {
 		{"GET " + p + "/class-days", "days", nil}, {"POST " + p + "/class-days", "day", Day{}}, {"GET " + p + "/class-days/{day}", "day", nil}, {"PUT " + p + "/class-days/{day}", "day", Day{}}, {"DELETE " + p + "/class-days/{day}", "day", struct{}{}},
 		{"GET " + p + "/class-days/{day}/attendance", "entries", nil}, {"POST " + p + "/class-days/{day}/attendance", "mark", Mark{}}, {"DELETE " + p + "/class-days/{day}/attendance/{account}", "unmark", struct{}{}}, {"GET " + p + "/attendance-report", "report", nil},
 		{"GET " + p + "/students", "students", nil},
+		{"GET " + p + "/journal-workspace", "journal-workspace", nil},
 		{"GET " + p + "/schedule-references", "schedule-references", nil},
 		{"POST " + p + "/class-days/{day}/qr", "qr", nil}, {"POST " + p + "/class-days/{day}/scan", "scan", struct {
 			QR string `json:"qr"`
@@ -151,7 +152,7 @@ func qid(r *http.Request, k string) (*int64, error) {
 func query(r *http.Request, kind string) error {
 	allowed := map[string]bool{}
 	switch kind {
-	case "schedule", "overlay", "personal", "days", "report", "own-report":
+	case "schedule", "overlay", "personal", "days", "report", "own-report", "journal-workspace":
 		allowed["date_from"] = true
 		allowed["date_to"] = true
 	}
@@ -368,7 +369,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, rt Route) {
 			}
 		}
 	}
-	result, e := s.Store.Mutate(r.Context(), a, *envelope.Expected, k, r.Method+" "+r.URL.Path, raw, s.replayAuthorization(r, a, d, ids, rt.Kind), func(st *State) (any, error) { return s.write(r, st, a, d, ids, rt.Kind, envelope.Data, k) }, func() (commandScope, error) {
+	result, e := s.Store.mutate(r.Context(), a, *envelope.Expected, k, r.Method+" "+r.URL.Path, raw, s.replayAuthorization(r, a, d, ids, rt.Kind), func(st *State) (any, error) { return s.write(r, st, a, d, ids, rt.Kind, envelope.Data, k) }, projectedCell(rt.Kind, ids, envelope.Data), func() (commandScope, error) {
 		return scopeAfterWrite(r.Method+" "+r.URL.Path, rt.Kind, d, envelope.Data)
 	})
 	if e != nil {
@@ -497,6 +498,23 @@ func (s *Server) read(r *http.Request, st *State, a Identity, d int64, ids map[s
 		}
 		sort.Slice(out, func(i, j int) bool { return out[i].Date < out[j].Date })
 		return out, nil
+	case "journal-workspace":
+		if !a.journal(d, false) {
+			return nil, denied
+		}
+		journal, e := s.report(r.Context(), st, a, d, 0, from, to, nil, nil)
+		if e != nil {
+			return nil, e
+		}
+		students, e := s.read(r, st, a, d, ids, "students")
+		if e != nil {
+			return nil, e
+		}
+		types, e := s.read(r, st, a, d, ids, "types")
+		if e != nil {
+			return nil, e
+		}
+		return map[string]any{"journal": journal, "students": students, "types": types}, nil
 	case "entries", "report":
 		account, e := qid(r, "account_id")
 		if e != nil {

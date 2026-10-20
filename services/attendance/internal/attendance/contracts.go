@@ -23,6 +23,11 @@ type JournalView struct {
 	Counts         map[string]int `json:"counts_by_type_code"`
 	UnmarkedAbsent bool           `json:"unmarked_is_absent"`
 }
+type JournalWorkspace struct {
+	Journal  JournalView `json:"journal"`
+	Students []Member    `json:"students"`
+	Types    []Type      `json:"types"`
+}
 type BatchResult struct {
 	IDs     []int64 `json:"created_ids"`
 	Updated int     `json:"updated_count"`
@@ -85,6 +90,8 @@ func outputShape(kind, method string) any {
 		return Deleted{}
 	case "entries", "report":
 		return JournalView{}
+	case "journal-workspace":
+		return JournalWorkspace{}
 	case "own-report":
 		return []JournalView{}
 	case "students":

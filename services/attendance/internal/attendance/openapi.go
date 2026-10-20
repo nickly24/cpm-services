@@ -79,7 +79,7 @@ func OpenAPI() map[string]any {
 			}
 		}
 		switch rt.Kind {
-		case "schedule", "overlay", "personal", "days", "report", "own-report":
+		case "schedule", "overlay", "personal", "days", "report", "own-report", "journal-workspace":
 			for _, n := range []string{"date_from", "date_to"} {
 				parameters = append(parameters, map[string]any{"name": n, "in": "query", "required": true, "schema": map[string]any{"type": "string", "format": "date"}})
 			}
