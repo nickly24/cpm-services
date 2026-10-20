@@ -49,7 +49,11 @@ path. Browser context/signature headers are never forwarded as trusted values.
 Manual mark/erase requests use Core `/internal/core/attendance/cell-targets` once.
 It locks the active organization/division, validates all current active student
 memberships, checks live proctor assignment/group when required and commits
-permanent history reservations. Set-based SQL bounds query count independently
+permanent history reservations. Full editors preserve historical erasure and
+receipt replay for inactive students: explicit scope-only validation checks the
+active organization/division without creating guards or requiring live students.
+Proctor erasures/replays still validate current membership/assignment and the
+original historical group. Set-based SQL bounds query count independently
 of the number of students. Revocation uses the same division/account locks.
 Existing scanner/profile resolution and zap APIs retain their existing Core
 paths; they also benefit from the single Auth request when context is enabled.

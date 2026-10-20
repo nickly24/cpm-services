@@ -184,3 +184,33 @@ func TestMySQLAttendanceCellsSerializesMembershipRevocation(t *testing.T) {
 		t.Fatal("guard created after revocation")
 	}
 }
+
+func TestMySQLAttendanceScopeOnlyPreservesHistoricalCorrectionBoundaries(t *testing.T) {
+	db := coreCellsDB(t)
+	s := &Server{DB: db, InternalKey: strings.Repeat("k", 32)}
+	db.Exec("UPDATE auth_account_state SET is_active=0")
+	call := func(raw string, expected int) {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/internal/core/attendance/cell-targets", strings.NewReader(raw))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("X-Service-Key", s.InternalKey)
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, r)
+		if w.Code != expected {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	valid := `{"organization_id":1,"division_id":2,"account_ids":[],"operation_key":"fixed-key","scope_only":true}`
+	call(valid, 200)
+	call(strings.Replace(valid, `"division_id":2`, `"division_id":3`, 1), 404)
+	call(strings.Replace(valid, `"organization_id":1`, `"organization_id":99`, 1), 404)
+	call(strings.Replace(valid, `"account_ids":[]`, `"account_ids":[7]`, 1), 400)
+	call(strings.Replace(valid, `"scope_only":true`, `"scope_only":false`, 1), 400)
+	call(strings.Replace(valid, `"scope_only":true`, `"scope_only":true,"proctor_account_id":6,"group_id":11`, 1), 400)
+	call(strings.Replace(valid, `"account_ids":[],`, "", 1), 400)
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM core_attendance_history_reservations").Scan(&count)
+	if count != 0 {
+		t.Fatal("scope check created guards")
+	}
+}

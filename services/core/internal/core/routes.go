@@ -243,9 +243,9 @@ func openAPI() map[string]any {
 	}}
 	cellsInput := schema(reflect.TypeOf(AttendanceCellsRequest{}))
 	cellsInput["required"] = []string{"organization_id", "division_id", "account_ids", "operation_key"}
-	cellsInput["properties"].(map[string]any)["account_ids"] = map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": map[string]any{"type": "integer", "minimum": 1}}
+	cellsInput["properties"].(map[string]any)["account_ids"] = map[string]any{"type": "array", "minItems": 0, "maxItems": 100, "uniqueItems": true, "items": map[string]any{"type": "integer", "minimum": 1}}
 	paths["/internal/core/attendance/cell-targets"] = map[string]any{"post": map[string]any{
-		"summary":     "Atomic active division/student/group validation and permanent history reservations for up to 100 unique accounts; proctor and group must be supplied together",
+		"summary":     "Atomic active division/student/group validation and permanent history reservations for up to 100 unique accounts; proctor and group must be supplied together. Explicit scope_only requires empty account_ids and no proctor; validates organization/division for historical erasure or full-editor receipt replay only",
 		"security":    []any{map[string]any{"serviceKey": []string{}}},
 		"requestBody": map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": cellsInput}}},
 		"responses": map[string]any{

@@ -102,6 +102,12 @@ func (s *Server) prepareCellTargets(ctx context.Context, a Identity, d int64, ce
 	seen := map[int64]bool{}
 	ids := []int64{}
 	for _, c := range cells {
+		// Full attendance editors could always erase historical marks without
+		// requiring the student account to remain active. Proctors still need
+		// live membership/group checks; every new mark needs a permanent guard.
+		if *c.TypeID == 0 && a.can(d, "attendance", true) {
+			continue
+		}
 		if !seen[c.AccountID] {
 			seen[c.AccountID] = true
 			ids = append(ids, c.AccountID)
@@ -116,6 +122,11 @@ func (s *Server) prepareCellTargets(ctx context.Context, a Identity, d int64, ce
 			return ctx, err
 		}
 	} else {
+		if len(ids) == 0 {
+			if _, err := s.Peers.Division(ctx, a.User.OrganizationID, d); err != nil {
+				return ctx, err
+			}
+		}
 		for _, id := range ids {
 			m, err := s.target(ctx, a, d, id, false)
 			if err != nil {

@@ -85,8 +85,9 @@ func TestMySQLCellBatchOneCoreAtomicHistoryReplayAndErase(t *testing.T) {
 			DivisionID     int64   `json:"division_id"`
 			AccountIDs     []int64 `json:"account_ids"`
 			OperationKey   string  `json:"operation_key"`
+			ScopeOnly      bool    `json:"scope_only"`
 		}
-		if json.NewDecoder(r.Body).Decode(&in) != nil || in.OrganizationID != f.org || in.DivisionID != 2 || !reflect.DeepEqual(in.AccountIDs, []int64{6, 7}) || len(in.OperationKey) < 8 {
+		if json.NewDecoder(r.Body).Decode(&in) != nil || in.OrganizationID != f.org || in.DivisionID != 2 || (len(in.AccountIDs) > 0 && !reflect.DeepEqual(in.AccountIDs, []int64{6, 7}) || len(in.AccountIDs) == 0 && !in.ScopeOnly) || len(in.OperationKey) < 8 {
 			t.Error("scope/accounts not deduplicated", in)
 		}
 		members := []any{}
@@ -221,5 +222,60 @@ func TestMySQLSingleCellsReuseCombinedCoreAndFenceHistoricalProctorScope(t *test
 	current, _, _ = f.s.Store.Read(context.Background(), f.org)
 	if !current.Entries[key(day.ID, 7)].Deleted {
 		t.Fatal("historical group fence lost")
+	}
+}
+
+func TestMySQLFullEditorHistoricalEraseAndReceiptDoNotRequireActiveStudent(t *testing.T) {
+	f := newReceiptFixture(t)
+	typ := receiptValue[Type](t, f.write("admin", "POST", "/v1/attendance/divisions/2/attendance-types", Type{Code: "present", Name: "Present", Color: "#00aa00", Active: true, Presence: true}).Result)
+	days := []Day{}
+	original := []receiptCommand{}
+	for _, date := range []string{"2026-10-20", "2026-10-21"} {
+		day := receiptValue[Day](t, f.write("admin", "POST", "/v1/attendance/divisions/2/class-days", Day{Date: date}).Result)
+		days = append(days, day)
+		original = append(original, f.write("admin", "POST", "/v1/attendance/divisions/2/class-days/"+itoa(day.ID)+"/attendance", Mark{7, typ.ID}))
+	}
+	var scopeCalls, targetCalls atomic.Int64
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			OrganizationID int64   `json:"organization_id"`
+			DivisionID     int64   `json:"division_id"`
+			IDs            []int64 `json:"account_ids"`
+			ScopeOnly      bool    `json:"scope_only"`
+			ProctorID      *int64  `json:"proctor_account_id"`
+		}
+		json.NewDecoder(r.Body).Decode(&in)
+		if len(in.IDs) > 0 {
+			targetCalls.Add(1)
+			reply(w, 404, map[string]any{"status": false, "error": "not_found"})
+			return
+		}
+		scopeCalls.Add(1)
+		if !in.ScopeOnly || in.ProctorID != nil || in.OrganizationID != f.org || in.DivisionID != 2 {
+			t.Error("historical scope widened", in)
+		}
+		reply(w, 200, map[string]any{"status": true, "data": map[string]any{"organization_id": f.org, "division_id": 2, "members": []Member{}}})
+	}))
+	defer core.Close()
+	peer := &combinedReceiptPeers{receiptPeers: f.p, http: NewPeers("", core.URL, strings.Repeat("k", 32))}
+	f.s.Peers = peer
+	f.h = f.s.Handler()
+	// Simulated inactive target: new marks fail, while full editors retain the
+	// previous single and batch erase/receipt semantics without new reservations.
+	path := "/v1/attendance/divisions/2/class-days/" + itoa(days[0].ID) + "/attendance"
+	raw, _ := json.Marshal(map[string]any{"expected_revision": f.revision, "data": Mark{7, typ.ID}})
+	f.call("admin", "POST", path, raw, f.uuid(), 404, "not_found")
+	f.write("admin", "DELETE", path+"/7", struct{}{})
+	f.write("admin", "POST", "/v1/attendance/divisions/2/attendance-cells/batch", CellBatch{[]CellEdit{{days[1].ID, 7, ptr(0)}}})
+	f.call("admin", "POST", original[0].Path, original[0].Body, original[0].ID, 200, "")
+	f.call("admin", "GET", "/v1/attendance/command-receipts/"+original[0].ID, nil, "", 200, "")
+	if targetCalls.Load() != 1 || scopeCalls.Load() != 4 || peer.oldCalls.Load() != 0 {
+		t.Fatal("historical correction made live-target RPCs", targetCalls.Load(), scopeCalls.Load(), peer.oldCalls.Load())
+	}
+	state, _, _ := f.s.Store.Read(context.Background(), f.org)
+	for _, day := range days {
+		if !state.Entries[key(day.ID, 7)].Deleted {
+			t.Fatal("receipt replay resurrected inactive student mark")
+		}
 	}
 }

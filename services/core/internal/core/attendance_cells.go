@@ -21,6 +21,7 @@ type AttendanceCellsRequest struct {
 	ProctorID      *int64  `json:"proctor_account_id"`
 	GroupID        *int64  `json:"group_id"`
 	OperationKey   string  `json:"operation_key"`
+	ScopeOnly      bool    `json:"scope_only"`
 }
 type AttendanceCellMember struct {
 	AccountID     int64  `json:"account_id"`
@@ -71,7 +72,7 @@ func decodeAttendanceCells(r *http.Request, out *AttendanceCellsRequest) error {
 	if d.Decode(out) != nil {
 		return bad("invalid_request")
 	}
-	if out.OrganizationID < 1 || out.DivisionID < 1 || len(out.AccountIDs) < 1 || len(out.AccountIDs) > 100 || !positive(out.ProctorID) || !positive(out.GroupID) || (out.ProctorID == nil) != (out.GroupID == nil) || !validText(out.OperationKey, 100, true) || len(out.OperationKey) < 8 || strings.TrimSpace(out.OperationKey) != out.OperationKey || strings.ContainsAny(out.OperationKey, "\r\n\t") {
+	if out.OrganizationID < 1 || out.DivisionID < 1 || !seen["account_ids"] || len(out.AccountIDs) > 100 || !out.ScopeOnly && len(out.AccountIDs) < 1 || out.ScopeOnly && (len(out.AccountIDs) != 0 || out.ProctorID != nil) || !positive(out.ProctorID) || !positive(out.GroupID) || (out.ProctorID == nil) != (out.GroupID == nil) || !validText(out.OperationKey, 100, true) || len(out.OperationKey) < 8 || strings.TrimSpace(out.OperationKey) != out.OperationKey || strings.ContainsAny(out.OperationKey, "\r\n\t") {
 		return bad("invalid_request")
 	}
 	ids := map[int64]bool{}
@@ -106,6 +107,9 @@ func (s *Server) attendanceCells(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := lockDivision(r.Context(), tx, Actor{OrganizationID: in.OrganizationID}, in.DivisionID); err != nil {
 			return err
+		}
+		if in.ScopeOnly {
+			return nil
 		}
 		if in.ProctorID != nil {
 			// A fresh Auth group grant alone is insufficient: the live Core assignment

@@ -283,8 +283,10 @@ func (s *Server) authorizeCommandReceipt(r *http.Request, a Identity, evidence r
 		if !commandAllowed(a, d, route.Kind) {
 			return denied
 		}
-		if _, e := s.Peers.Division(r.Context(), a.User.OrganizationID, d); e != nil {
-			return e
+		if !s.combinedCells(route.Kind) {
+			if _, e := s.Peers.Division(r.Context(), a.User.OrganizationID, d); e != nil {
+				return e
+			}
 		}
 	}
 	if route.Kind == "zap-create" {

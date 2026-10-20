@@ -321,6 +321,9 @@ func (p *HTTPPeers) CellTargets(ctx context.Context, a Identity, d int64, ids []
 		} `json:"data"`
 	}
 	input := map[string]any{"organization_id": a.User.OrganizationID, "division_id": d, "account_ids": ids, "operation_key": op}
+	if len(ids) == 0 {
+		input["scope_only"] = true
+	}
 	if proctor != nil {
 		input["proctor_account_id"] = *proctor
 		input["group_id"] = *group
