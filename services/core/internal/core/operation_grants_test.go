@@ -50,7 +50,7 @@ func TestCredentialGrantFirstApplyChecksProofUnderSessionLockAndStoresReceiptAto
 				steps[3].rows = nil
 			}
 			if scenario == "success" || scenario == "receiptwritefails" {
-				steps = append(steps, legacySQLStep{kind: "query", contains: "COUNT(*) FROM auth_users WHERE username=?", cols: []string{"count"}, rows: [][]driver.Value{{int64(0)}}}, legacySQLStep{kind: "exec", contains: "INSERT INTO students", inserted: 19}, legacySQLStep{kind: "exec", contains: "INSERT INTO auth_users", inserted: 91})
+				steps = append(steps, legacySQLStep{kind: "query", contains: "COUNT(*) FROM auth_users WHERE username=?", cols: []string{"count"}, rows: [][]driver.Value{{int64(0)}}}, legacySQLStep{kind: "exec", contains: "INSERT INTO students", inserted: 19}, legacySQLStep{kind: "query", contains: "COUNT(*) FROM auth_users WHERE role='student' AND ref_id=?", cols: []string{"count"}, rows: [][]driver.Value{{int64(0)}}}, legacySQLStep{kind: "exec", contains: "INSERT INTO auth_users", inserted: 91})
 				for _, table := range []string{"auth_account_state", "core_user_owners", "auth_organization_access", "auth_division_access", "core_audit"} {
 					steps = append(steps, legacySQLStep{kind: "exec", contains: "INSERT INTO " + table})
 				}

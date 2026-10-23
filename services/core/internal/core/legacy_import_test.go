@@ -324,7 +324,7 @@ func TestLegacyApplyRollsBackAllSubjectWritesOnLaterFailure(t *testing.T) {
 	count := func() legacySQLStep {
 		return legacySQLStep{kind: "query", contains: "COUNT(*) FROM auth_users WHERE username=?", cols: []string{"count"}, rows: [][]driver.Value{{int64(0)}}}
 	}
-	steps := []legacySQLStep{count(), count(), {kind: "exec", contains: "INSERT INTO students", inserted: 101}, {kind: "exec", contains: "INSERT INTO auth_users", inserted: 201}}
+	steps := []legacySQLStep{count(), count(), {kind: "exec", contains: "INSERT INTO students", inserted: 101}, {kind: "query", contains: "COUNT(*) FROM auth_users WHERE role='student' AND ref_id=?", cols: []string{"count"}, rows: [][]driver.Value{{int64(0)}}}, {kind: "exec", contains: "INSERT INTO auth_users", inserted: 201}}
 	for _, table := range []string{"auth_account_state", "core_user_owners", "auth_organization_access", "auth_division_access", "core_audit"} {
 		steps = append(steps, legacySQLStep{kind: "exec", contains: "INSERT INTO " + table})
 	}

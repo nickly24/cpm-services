@@ -113,8 +113,23 @@ func (s *Server) validUser(r *http.Request, db DBTX, a Actor, d int64, in UserDT
 	if !validText(in.FullName, 50, true) || !validText(in.Login, 50, true) || strings.ContainsAny(in.Login, " \t\r\n") || len(in.Password) < 8 || len(in.Password) > 1024 || !positive(in.RoleID) || !positive(in.SchoolID) || !positive(in.GroupID) || !validText(in.TGName, 30, false) {
 		return bad("invalid_user")
 	}
+	if in.Role != "student" && in.ProfileID != nil {
+		return bad("profile_id_for_student_only")
+	}
+	if in.ProfileID != nil {
+		if *in.ProfileID < 1 || *in.ProfileID > 2147483647 {
+			return bad("invalid_profile_id")
+		}
+		var count int
+		if e := db.QueryRowContext(r.Context(), "SELECT (SELECT COUNT(*) FROM students WHERE id=?) + (SELECT COUNT(*) FROM auth_users WHERE role='student' AND ref_id=?)", *in.ProfileID, *in.ProfileID).Scan(&count); e != nil {
+			return e
+		}
+		if count != 0 {
+			return &APIError{409, "profile_id_exists"}
+		}
+	}
 	if in.Role == "student" {
-		if in.Class < 1 || in.Class > 99 || !validText(in.TGName, 30, false) || in.RoleID != nil {
+		if in.Class < 0 || in.Class > 99 || in.classSupplied && in.Class == 0 || !validText(in.TGName, 30, false) || in.RoleID != nil {
 			return bad("invalid_student")
 		}
 	} else if in.SchoolID != nil || in.Class != 0 {
@@ -165,7 +180,11 @@ func (s *Server) insertUser(r *http.Request, tx *sql.Tx, a Actor, d int64, in Us
 	table := profileTables[in.Role]
 	switch in.Role {
 	case "student":
-		result, e = tx.ExecContext(r.Context(), "INSERT INTO students(full_name,`class`,tg_name,school_id) VALUES(?,?,?,?)", strings.TrimSpace(in.FullName), in.Class, in.TGName, in.SchoolID)
+		if in.ProfileID != nil {
+			result, e = tx.ExecContext(r.Context(), "INSERT INTO students(id,full_name,`class`,tg_name,school_id) VALUES(?,?,?,?,?)", *in.ProfileID, strings.TrimSpace(in.FullName), nullableStudentClass(in.Class), in.TGName, in.SchoolID)
+		} else {
+			result, e = tx.ExecContext(r.Context(), "INSERT INTO students(full_name,`class`,tg_name,school_id) VALUES(?,?,?,?)", strings.TrimSpace(in.FullName), nullableStudentClass(in.Class), in.TGName, in.SchoolID)
+		}
 	case "staff_admin":
 		var legacy int64
 		e = tx.QueryRowContext(r.Context(), "SELECT id FROM admin_roles ORDER BY id LIMIT 1").Scan(&legacy)
@@ -189,6 +208,15 @@ func (s *Server) insertUser(r *http.Request, tx *sql.Tx, a Actor, d int64, in Us
 	profileID, e := result.LastInsertId()
 	if e != nil {
 		return 0, e
+	}
+	if in.Role == "student" {
+		var count int
+		if e = tx.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM auth_users WHERE role='student' AND ref_id=?", profileID).Scan(&count); e != nil {
+			return 0, e
+		}
+		if count != 0 {
+			return 0, &APIError{409, "profile_id_exists"}
+		}
 	}
 	result, e = tx.ExecContext(r.Context(), "INSERT INTO auth_users(username,password,role,ref_id) VALUES(?,?,?,?)", in.Login, hash, in.Role, profileID)
 	if e != nil {
@@ -272,7 +300,7 @@ func (s *Server) userUpdate(r *http.Request, a Actor, d int64) (any, int, error)
 		role := row["role"].(string)
 		table := profileTables[role]
 		if role == "student" {
-			if in.Class < 1 || in.Class > 99 {
+			if in.Class < 0 || in.Class > 99 || in.classSupplied && in.Class == 0 {
 				return bad("invalid_class")
 			}
 			if in.SchoolID != nil {
@@ -280,7 +308,7 @@ func (s *Server) userUpdate(r *http.Request, a Actor, d int64) (any, int, error)
 					return e
 				}
 			}
-			_, e = tx.ExecContext(r.Context(), "UPDATE students SET full_name=?,`class`=?,tg_name=?,school_id=? WHERE id=?", strings.TrimSpace(in.FullName), in.Class, in.TGName, in.SchoolID, row["profile_id"])
+			_, e = tx.ExecContext(r.Context(), "UPDATE students SET full_name=?,`class`=?,tg_name=?,school_id=? WHERE id=?", strings.TrimSpace(in.FullName), nullableStudentClass(in.Class), in.TGName, in.SchoolID, row["profile_id"])
 		} else {
 			if in.Class != 0 || in.SchoolID != nil {
 				return bad("student_fields_for_staff")

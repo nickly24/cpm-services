@@ -48,7 +48,7 @@ func importRows(rows [][]string) (ImportDTO, error) {
 	}
 	headers := rows[0]
 	seen := map[string]bool{}
-	allowed := map[string]bool{"role": true, "full_name": true, "class": true, "tg_name": true, "school_id": true, "group_id": true, "role_id": true, "login": true, "password": true}
+	allowed := map[string]bool{"profile_id": true, "role": true, "full_name": true, "class": true, "tg_name": true, "school_id": true, "group_id": true, "role_id": true, "login": true, "password": true}
 	for _, h := range headers {
 		if !allowed[h] || seen[h] {
 			return out, bad("invalid_import_columns")
@@ -80,9 +80,12 @@ func importRows(rows [][]string) (ImportDTO, error) {
 			if e != nil {
 				return out, bad("invalid_class")
 			}
+			if n < 1 || n > 99 {
+				return out, bad("invalid_class")
+			}
 			u.Class = n
 		}
-		for k, p := range map[string]**int64{"school_id": &u.SchoolID, "group_id": &u.GroupID, "role_id": &u.RoleID} {
+		for k, p := range map[string]**int64{"profile_id": &u.ProfileID, "school_id": &u.SchoolID, "group_id": &u.GroupID, "role_id": &u.RoleID} {
 			if raw := m[k]; raw != "" {
 				n, e := parsePositive(raw)
 				if e != nil {

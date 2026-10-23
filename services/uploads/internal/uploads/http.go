@@ -17,6 +17,11 @@ func reply(w http.ResponseWriter, code int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 func fail(w http.ResponseWriter, e error) {
+	var rows *studentValidationError
+	if errors.As(e, &rows) {
+		reply(w, 409, map[string]any{"status": false, "error": "student_import_validation", "issues": rows.Issues})
+		return
+	}
 	var ae *APIError
 	if errors.Is(e, sql.ErrNoRows) {
 		ae = &APIError{404, "not_found"}
@@ -117,8 +122,10 @@ func (s *Server) Handler() http.Handler {
 		return map[string]any{"scope": sc, "types": out, "delivery": "rabbit", "job_execution": execution, "job_authorization": authorization, "log_scope": "actor_in_selected_division"}, 200, nil
 	})
 	s.route(m, "POST "+p+"/sessions", s.create)
+	s.route(m, "POST "+p+"/student-imports/{draft}/batches/{batch}", s.studentBatch)
 	s.route(m, "GET "+p+"/sessions", s.listSessions)
 	s.route(m, "GET "+p+"/sessions/{session}", s.sessionGet)
+	s.route(m, "GET "+p+"/sessions/{session}/job", s.studentSessionJob)
 	s.route(m, "PUT "+p+"/sessions/{session}", s.edit)
 	s.route(m, "POST "+p+"/sessions/{session}/reconcile", s.reconcile)
 	s.route(m, "POST "+p+"/sessions/{session}/commit", s.commit)

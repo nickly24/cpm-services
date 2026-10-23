@@ -39,3 +39,13 @@ JSON/JS/XLSX preview uses the existing authenticated owner endpoint
 `/v1/tests/divisions/{division}/imports/json/preview` with the original bearer,
 not the unrelated Uploads internal credential. Confirmation and worker grant,
 idempotency, owner receipt and tenant fences remain unchanged.
+
+### Student draft bridge
+
+`POST /v1/uploads/divisions/{division}/student-imports/{draft}/batches/{index}` accepts `expected_revision` and a stable Idempotency-Key. Only the live full organization administrator may bridge their own frozen Core draft. A full admin may choose another active division in the same current organization; Core revalidates it, and Auth derives the grant's target from its live account catalog. Delegated actors remain confined to the selected division.
+
+The bridge reserves one normal `users.credentials` session, asks Core to prepare the immutable native child, and stores only native ID/source hash, not input or credentials. The existing session commit, issuer grant, Rabbit outbox, native UUID/proof and receipt-only UNKNOWN recovery are reused. `GET .../sessions/{session}/job` exposes only the initiator's credential job/capabilities for reload recovery. BFF's explicit-division surface is limited to the bridge, individual session/job reads, confirmation and receipt recovery; catalog/history/file registration are not widened.
+
+If the process stops after the reservation receipt but before session creation, the same command recovers its reserved session ID. A receipt row lock serializes creation/recovery, and session plus file metadata commit together before any native owner request. Replays cannot allocate a second session or file; changed payloads still conflict.
+
+A single file has no 100-person product limit: the UI dispatches groups of 25 serially and stops on unresolved outcomes. Each group's existing atomic native transaction remains independent; prior completed groups are retained. Native preparation conflicts cross Core→Uploads→BFF only as allowlisted physical row/field/reason, without login/password values, arbitrary native body or SQL. Old formats/other owner contracts remain available and their queue semantics are unchanged.

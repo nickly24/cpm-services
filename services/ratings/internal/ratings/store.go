@@ -149,7 +149,15 @@ func (s *Store) Prepare(ctx context.Context, j Job, snap Snapshot) error {
 	if e != nil || len(raw) > MaxSnapshotBytes {
 		return bad("snapshot_too_large")
 	}
+	// Core's full roster also scopes access to historical publications. Keep
+	// that source snapshot intact, but calculate a new version for active members.
+	accounts := make([]Account, 0, len(snap.Core.Accounts))
 	for _, a := range snap.Core.Accounts {
+		if a.IsActive {
+			accounts = append(accounts, a)
+		}
+	}
+	for _, a := range accounts {
 		in, e := personal(j, snap, a)
 		if e != nil {
 			return e
@@ -173,7 +181,7 @@ func (s *Store) Prepare(ctx context.Context, j Job, snap Snapshot) error {
 		return conflict("job_lease_lost")
 	}
 	now := time.Now().UTC()
-	for _, a := range snap.Core.Accounts {
+	for _, a := range accounts {
 		in, e := personal(j, snap, a)
 		if e != nil {
 			return e
@@ -195,7 +203,7 @@ func (s *Store) Prepare(ctx context.Context, j Job, snap Snapshot) error {
 			return e
 		}
 	}
-	_, e = tx.ExecContext(ctx, "UPDATE ratings_jobs_v1 SET status='queued',snapshot=?,source_hash=?,total_count=?,error_code='',next_attempt_at=?,lease_token=NULL,lease_until=NULL WHERE id=?", raw, fingerprint(snap), len(snap.Core.Accounts), now, j.ID)
+	_, e = tx.ExecContext(ctx, "UPDATE ratings_jobs_v1 SET status='queued',snapshot=?,source_hash=?,total_count=?,error_code='',next_attempt_at=?,lease_token=NULL,lease_until=NULL WHERE id=?", raw, fingerprint(snap), len(accounts), now, j.ID)
 	if e != nil {
 		return e
 	}

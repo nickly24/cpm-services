@@ -86,6 +86,16 @@ func (s *Server) specs() []routeSpec {
 		{"POST /v1/core/divisions/{division}/zaps/{zap}/process", "Решение по отгулу: zaps.edit; посещение типа 2", s.zapProcess, ZapProcessDTO{}},
 		{"POST /v1/core/divisions/{division}/zaps/{zap}/dates/{date}/retry", "Повтор привязки даты одобренного отгула: zaps.edit", s.zapDateAction, nil},
 		{"DELETE /v1/core/divisions/{division}/zaps/{zap}/dates/{date}", "Отвязка даты отгула: zaps.edit", s.zapDateAction, nil},
+		{"GET /v1/core/divisions/{division}/student-imports", "Student import: live initiator full organization admin", s.studentList, nil},
+		{"POST /v1/core/divisions/{division}/student-imports", "Student import: live initiator full organization admin", s.studentCreate, nil},
+		{"GET /v1/core/divisions/{division}/student-imports/template", "Student import: live initiator full organization admin", s.studentTemplate, nil},
+		{"GET /v1/core/divisions/{division}/student-imports/{draft}", "Student import: live initiator full organization admin", s.studentGet, nil},
+		{"POST /v1/core/divisions/{division}/student-imports/{draft}/review", "Student import: live initiator full organization admin", s.studentReview, nil},
+		{"PUT /v1/core/divisions/{division}/student-imports/{draft}", "Student import: live initiator full organization admin", s.studentEdit, studentEditDTO{}},
+		{"POST /v1/core/divisions/{division}/student-imports/{draft}/freeze", "Student import: live initiator full organization admin", s.studentFreeze, studentRevisionDTO{}},
+		{"POST /v1/core/divisions/{division}/student-imports/{draft}/cancel", "Student import: live initiator full organization admin", s.studentCancel, nil},
+		{"POST /v1/core/divisions/{division}/student-imports/{draft}/export", "Student import: live initiator full organization admin", s.studentExport, nil},
+		{"POST /v1/core/divisions/{division}/student-imports/{draft}/batches/{batch}/prepare", "Student import: live initiator full organization admin", s.studentPrepare, studentPrepareDTO{}},
 		{"GET /v1/core/divisions/{division}/imports", "История импортов: upload.view и users.view", s.imports, nil},
 		{"POST /v1/core/divisions/{division}/imports", "Предпросмотр JSON/CSV/XLSX (до 100): upload.edit и users.edit", s.importPreview, ImportDTO{}},
 		{"GET /v1/core/divisions/{division}/imports/receipts/{receipt}", "Восстановление своей сессии импорта по ключу команды без секретов", s.importReceiptGet, nil},
@@ -130,6 +140,9 @@ func schema(t reflect.Type) map[string]any {
 			if name != "" && name != "-" {
 				props[name] = schema(f.Type)
 			}
+		}
+		if t == reflect.TypeFor[UserDTO]() || t == reflect.TypeFor[ProfileDTO]() {
+			props["class"] = map[string]any{"anyOf": []any{map[string]any{"type": "integer", "minimum": 0, "maximum": 99}, map[string]any{"type": "null"}}, "description": "Student class is optional: omitted/null stores SQL NULL; supplied student values must be 1..99. Legacy staff DTOs retain zero."}
 		}
 		return map[string]any{"type": "object", "properties": props, "additionalProperties": false}
 	}

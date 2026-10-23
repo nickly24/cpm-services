@@ -58,6 +58,11 @@ func (s *Server) callHeaders(ctx context.Context, method, base, path, token, key
 		return nil, api(503, "owner_outcome_unknown")
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		if base == s.Config.CoreURL && strings.Contains(path, "/student-imports/") {
+			if details := studentValidation(raw); details != nil {
+				return nil, details
+			}
+		}
 		msg := "owner_rejected"
 		switch res.StatusCode {
 		case 401:
@@ -127,7 +132,7 @@ func (s *Server) authorize(ctx context.Context, token string, d int64) (Actor, S
 			exists = true
 		}
 	}
-	if !exists || (a.DivisionID == nil || *a.DivisionID != d) {
+	if !exists || !a.OrganizationAdmin && (a.DivisionID == nil || *a.DivisionID != d) {
 		return a, sc, api(403, "scope_access_denied")
 	}
 	return a, sc, nil

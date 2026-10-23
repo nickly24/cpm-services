@@ -31,21 +31,24 @@ type SchoolDTO struct {
 	Active    bool   `json:"is_active"`
 }
 type UserDTO struct {
-	Role     string `json:"role"`
-	FullName string `json:"full_name"`
-	Class    int    `json:"class"`
-	TGName   string `json:"tg_name"`
-	SchoolID *int64 `json:"school_id"`
-	GroupID  *int64 `json:"group_id"`
-	RoleID   *int64 `json:"role_id"`
-	Login    string `json:"login"`
-	Password string `json:"password"`
+	ProfileID     *int64 `json:"profile_id,omitempty"`
+	classSupplied bool
+	Role          string `json:"role"`
+	FullName      string `json:"full_name"`
+	Class         int    `json:"class"`
+	TGName        string `json:"tg_name"`
+	SchoolID      *int64 `json:"school_id"`
+	GroupID       *int64 `json:"group_id"`
+	RoleID        *int64 `json:"role_id"`
+	Login         string `json:"login"`
+	Password      string `json:"password"`
 }
 type ProfileDTO struct {
-	FullName string `json:"full_name"`
-	Class    int    `json:"class"`
-	TGName   string `json:"tg_name"`
-	SchoolID *int64 `json:"school_id"`
+	classSupplied bool
+	FullName      string `json:"full_name"`
+	Class         int    `json:"class"`
+	TGName        string `json:"tg_name"`
+	SchoolID      *int64 `json:"school_id"`
 }
 type CredentialsDTO struct {
 	Login    string `json:"login"`

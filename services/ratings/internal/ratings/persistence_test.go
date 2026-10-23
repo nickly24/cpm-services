@@ -111,6 +111,51 @@ func TestPreparePendingTestCreatesNoItemsOrOutbox(t *testing.T) {
 	// The pending check precedes BeginTx, so no persistence expectations exist.
 }
 
+func TestPrepareCalculatesOnlyActiveMembersAndRetainsFullSourceSnapshot(t *testing.T) {
+	for _, active := range []bool{true, false} {
+		name := "mixed"
+		if !active {
+			name = "all_inactive"
+		}
+		t.Run(name, func(t *testing.T) {
+			store, mock := mockStore(t)
+			j := fixtureJob()
+			lease := "leased-worker"
+			j.LeaseToken = &lease
+			snap := fixtureSnapshot(j)
+			snap.Core.Accounts[0].IsActive = active
+			snap.Core.Accounts = append(snap.Core.Accounts, Account{AccountID: 72, ProfileID: 10, IsActive: false})
+			// A pending grade belonging only to an inactive member must not
+			// block a new calculation for the remaining active candidates.
+			results := []TestResult{{AccountID: 72, Status: "queued"}}
+			if !active {
+				results = append(results, TestResult{AccountID: 71, Status: "queued"})
+			}
+			snap.Tests.Tests = []Test{{ID: "inactive-pending", Results: results}}
+			raw, _ := json.Marshal(snap)
+			mock.ExpectBegin()
+			mock.ExpectQuery("SELECT status,lease_token FROM ratings_jobs_v1").WithArgs(j.ID).
+				WillReturnRows(sqlmock.NewRows([]string{"status", "lease_token"}).AddRow("preparing", lease))
+			count := 0
+			if active {
+				count = 1
+				mock.ExpectExec("INSERT INTO ratings_items_v1").WithArgs(j.ID, int64(71), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectExec("INSERT INTO ratings_outbox_v1").WillReturnResult(sqlmock.NewResult(0, 1))
+			}
+			mock.ExpectExec("UPDATE ratings_jobs_v1 SET status='queued'").WithArgs(raw, fingerprint(snap), count, sqlmock.AnyArg(), j.ID).
+				WillReturnResult(sqlmock.NewResult(0, 1))
+			mock.ExpectCommit()
+			if e := store.Prepare(context.Background(), j, snap); e != nil {
+				t.Fatal(e)
+			}
+			if len(snap.Core.Accounts) != 2 || snap.Core.Accounts[1].IsActive {
+				t.Fatal("source roster was changed by candidate selection")
+			}
+		})
+	}
+}
+
 func expectPublicationLocks(mock sqlmock.Sqlmock, j Job, scopeRevision int64, current Job) {
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT revision,active_job_id FROM ratings_scopes_v1 WHERE organization_id=? AND division_id=? FOR UPDATE")).WithArgs(j.OrganizationID, j.DivisionID).

@@ -126,6 +126,10 @@ func upstream(w http.ResponseWriter, code int, data []byte, retryAfter ...string
 		}
 	}
 	if code >= 400 {
+		if details := studentValidationResponse(data); details != nil {
+			reply(w, code, details)
+			return
+		}
 		var e struct {
 			Error string `json:"error"`
 		}
@@ -244,6 +248,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	bodyLimit := int64(1 << 20)
 	if publicExam {
 		bodyLimit = 18 << 20
+	}
+	if studentCoreRoutes.MatchString(r.Method + " " + strings.TrimPrefix(path, "core/")) {
+		bodyLimit = (8 << 20) + (64 << 10)
 	}
 	if publicUpload {
 		bodyLimit = (8 << 20) + (64 << 10)

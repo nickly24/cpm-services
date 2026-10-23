@@ -14,13 +14,32 @@ import (
 const uploadID = `[a-f0-9]{32}`
 const uploadCommand = `[a-zA-Z0-9:_-]{8,128}`
 
-var uploadsRoutes = regexp.MustCompile(`^(GET (catalog|sessions|sessions/` + uploadID + `|jobs|jobs/` + uploadID + `(/report)?|files/` + uploadID + `(/download)?|receipts/` + uploadCommand + `|events)|POST (sessions|sessions/` + uploadID + `/(commit|reconcile)|jobs/` + uploadID + `/(retry|recover|revoke)|files/register)|PUT sessions/` + uploadID + `)$`)
+var studentUploadBatch = regexp.MustCompile(`^student-imports/[a-f0-9]{32}/batches/[0-9]{1,7}$`)
+var uploadsRoutes = regexp.MustCompile(`^(GET (catalog|sessions|sessions/` + uploadID + `(/job)?|jobs|jobs/` + uploadID + `(/report)?|files/` + uploadID + `(/download)?|receipts/` + uploadCommand + `|events)|POST (sessions|sessions/` + uploadID + `/(commit|reconcile)|jobs/` + uploadID + `/(retry|recover|revoke)|files/register)|PUT sessions/` + uploadID + `)$`)
 var uploadsDownload = regexp.MustCompile(`^files/` + uploadID + `/download$`)
 var uploadsTemplate = regexp.MustCompile(`^templates/(users\.(credentials|legacy)|cards\.xlsx|tests\.(json|external-results)|exams\.(questions|assignments|outside))$`)
 var uploadsTargetID = regexp.MustCompile(`^` + coreID + `$`)
 var uploadsExternalTargetID = regexp.MustCompile(`^[a-f0-9]{24}$`)
 
 func uploadsRoute(method, tail string) string {
+	if rest, ok := strings.CutPrefix(tail, "divisions/"); ok {
+		parts := strings.SplitN(rest, "/", 2)
+		if len(parts) != 2 || !uploadsTargetID.MatchString(parts[0]) {
+			return ""
+		}
+		if !(method == "POST" && studentUploadBatch.MatchString(parts[1]) || regexp.MustCompile(`^(GET (sessions/[a-f0-9]{32}(/job)?|jobs/[a-f0-9]{32})|POST (sessions/[a-f0-9]{32}/commit|jobs/[a-f0-9]{32}/recover))$`).MatchString(method+" "+parts[1])) {
+			return ""
+		}
+		route := uploadsRoute(method, parts[1])
+		if route == "" {
+			return ""
+		}
+		return strings.Replace(route, "%d", parts[0], 1)
+	}
+	if method == "POST" && studentUploadBatch.MatchString(tail) {
+		return "/v1/uploads/divisions/%d/" + tail
+	}
+
 	if uploadsRoutes.MatchString(method+" "+tail) || method == "GET" && uploadsTemplate.MatchString(tail) {
 		return "/v1/uploads/divisions/%d/" + tail
 	}
@@ -28,6 +47,13 @@ func uploadsRoute(method, tail string) string {
 }
 
 func uploadsQuery(method, tail string, q url.Values) bool {
+	if rest, ok := strings.CutPrefix(tail, "divisions/"); ok {
+		parts := strings.SplitN(rest, "/", 2)
+		if len(parts) != 2 {
+			return false
+		}
+		tail = parts[1]
+	}
 	for key, values := range q {
 		if method == "GET" && len(values) == 1 {
 			if tail == "templates/tests.external-results" && key == "target_id" && uploadsExternalTargetID.MatchString(values[0]) {

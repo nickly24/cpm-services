@@ -28,6 +28,11 @@ func reply(w http.ResponseWriter, code int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 func fail(w http.ResponseWriter, err error) {
+	var rows *studentRowsError
+	if errors.As(err, &rows) {
+		reply(w, 409, map[string]any{"status": false, "error": "student_import_validation", "issues": rows.Issues})
+		return
+	}
 	err = translate(err)
 	var e *APIError
 	if errors.As(err, &e) {
@@ -192,7 +197,11 @@ func (s *Server) Handler() http.Handler {
 			fail(w, e)
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
+		bodyLimit := int64(8 << 20)
+		if strings.Contains(r.URL.Path, "/student-imports") {
+			bodyLimit += 64 << 10
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, bodyLimit)
 		ctx, c := context.WithTimeout(r.Context(), 90*time.Second)
 		defer c()
 		defer func() {

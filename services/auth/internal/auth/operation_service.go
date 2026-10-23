@@ -118,6 +118,18 @@ func (s *OperationService) Issue(ctx context.Context, a *Account, u UserDTO, key
 	if a == nil || u.AccountID != a.UserID || u.ID != a.EntityID || u.Role != a.Role || u.DivisionID == nil || !operationUUID.MatchString(key) {
 		return OperationResponse{}, opError(400, "invalid_operation_request")
 	}
+	// A full organization administrator may explicitly target another active
+	// division of the same live organization for new user imports. No browser
+	// organization or service credential can provide that authority.
+	if b.Type == "users.credentials" && len(b.RequiredDivisionIDs) == 1 {
+		if target, ok := operationDecimal(b.RequiredDivisionIDs[0]); ok {
+			var e error
+			u, e = operationUserImportTarget(a, u, target)
+			if e != nil {
+				return OperationResponse{}, e
+			}
+		}
+	}
 	if e := b.validate(*u.DivisionID); e != nil {
 		return OperationResponse{}, e
 	}
@@ -229,6 +241,12 @@ func (s *OperationService) Recover(ctx context.Context, oldID, key string, a *Ac
 	if e != nil {
 		return OperationResponse{}, e
 	}
+	if old.Binding.Type == "users.credentials" {
+		u, e = operationUserImportTarget(a, u, old.DivisionID)
+		if e != nil {
+			return OperationResponse{}, e
+		}
+	}
 	if a == nil || u.AccountID != old.AccountID || a.UserID != old.AccountID || u.ID != a.EntityID || u.Role != a.Role || u.OrganizationID != old.OrganizationID || u.DivisionID == nil || *u.DivisionID != old.DivisionID {
 		return OperationResponse{}, opError(404, "operation_not_found")
 	}
@@ -270,4 +288,21 @@ func (s *OperationService) Revoke(ctx context.Context, id string, a *Account, u 
 
 func operationScopeHash(g OperationGrant) string {
 	return strconv.FormatInt(g.AccountID, 10) + ":" + g.IssuanceKey
+}
+
+func operationUserImportTarget(a *Account, u UserDTO, target int64) (UserDTO, error) {
+	if a == nil || u.AccountID != a.UserID || u.ID != a.EntityID || u.Role != a.Role {
+		return u, opError(403, "operation_access_denied")
+	}
+	if u.DivisionID != nil && *u.DivisionID == target {
+		return u, nil
+	}
+	if u.Role != "admin" || !u.OrganizationAdmin {
+		return u, opError(403, "operation_access_denied")
+	}
+	v, e := a.User(ContextDTO{OrganizationID: u.OrganizationID, DivisionID: &target})
+	if e != nil || !v.OrganizationAdmin || v.OrganizationID != u.OrganizationID {
+		return u, opError(403, "operation_access_denied")
+	}
+	return v, nil
 }
