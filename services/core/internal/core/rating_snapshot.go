@@ -46,7 +46,7 @@ type RatingAccount struct {
 	AccountID       int64   `json:"account_id"`
 	ProfileID       int64   `json:"profile_id"`
 	FullName        string  `json:"full_name"`
-	Class           int64   `json:"class"`
+	Class           *int64  `json:"class"`
 	GroupID         *int64  `json:"group_id"`
 	GroupName       *string `json:"group_name"`
 	SchoolID        *int64  `json:"school_id"`

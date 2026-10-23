@@ -143,6 +143,7 @@ func TestRatingSnapshotIncludesInactiveStudentsAndStableHistoricalNames(t *testi
 		{contains: []string{"a.role='student'", "m.organization_id=? AND m.division_id=?", "ORDER BY a.id LIMIT 2001"}, columns: []string{"account", "profile", "name", "class", "group", "group_name", "school", "school_name", "school_short", "active"}, rows: [][]driver.Value{
 			{int64(10), int64(21), "DEV Active", int64(7), int64(4), "DEV G", int64(5), "DEV School", "DEV S", int64(1)},
 			{int64(11), int64(22), "DEV Blocked", int64(8), nil, nil, nil, nil, nil, int64(0)},
+			{int64(12), int64(23), "DEV Optional Class", nil, nil, nil, nil, nil, nil, int64(1)},
 		}, args: []int64{1, 2}},
 		{contains: []string{"x.organization_id=? ORDER BY d.id LIMIT 2001"}, columns: []string{"id", "name"}, rows: [][]driver.Value{{int64(8), "Historical direction"}}, args: []int64{1}},
 	}}
@@ -167,8 +168,11 @@ func TestRatingSnapshotIncludesInactiveStudentsAndStableHistoricalNames(t *testi
 		t.Fatal(e)
 	}
 	out := response.Data
-	if len(out.Accounts) != 2 || !out.Accounts[0].IsActive || out.Accounts[1].IsActive || out.Accounts[1].GroupID != nil || out.Accounts[0].AccountID == out.Accounts[0].ProfileID {
+	if len(out.Accounts) != 3 || !out.Accounts[0].IsActive || out.Accounts[1].IsActive || out.Accounts[1].GroupID != nil || out.Accounts[0].AccountID == out.Accounts[0].ProfileID {
 		t.Fatal("inactive history, null values or account/profile identities lost")
+	}
+	if out.Accounts[0].Class == nil || *out.Accounts[0].Class != 7 || out.Accounts[2].Class != nil || !strings.Contains(w.Body.String(), `"class":null`) {
+		t.Fatal("optional class lost or existing class changed")
 	}
 	if len(out.InputHash) != 64 || len(out.Directions) != 1 {
 		t.Fatal("incomplete snapshot")
