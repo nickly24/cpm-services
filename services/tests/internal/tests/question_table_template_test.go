@@ -42,15 +42,15 @@ func TestQuestionTableTemplateRoundTripWithAllQuestionTypes(t *testing.T) {
 			}
 		}
 	}
-	if len(sheet.Rows) != 4 || len(sheet.Rows[0].Cells) != 9 || sheet.Rows[0].Cells[1].Text != "Название теста" || sheet.Rows[0].Cells[7].Text != "Правильный ответ" {
+	if len(sheet.Rows) != 4 || len(sheet.Rows[0].Cells) != 8 || sheet.Rows[0].Cells[1].Text != "Название теста" || sheet.Rows[0].Cells[7].Text != "Правильный ответ" {
 		t.Fatal("actual Excel headers/example rows lost")
 	}
 	rows := []map[string]any{}
 	for i, row := range sheet.Rows[1:] {
-		if len(row.Cells) != 9 || row.Cells[0].Text != "Право & Конституция" {
+		if len(row.Cells) != 8 || row.Cells[0].Text != "Право & Конституция" {
 			t.Fatal("XML escaped direction lost")
 		}
-		rows = append(rows, map[string]any{"row": i + 2, "title": row.Cells[1].Text, "number": row.Cells[3].Text, "category": row.Cells[4].Text, "question": row.Cells[5].Text, "options": row.Cells[6].Text, "answer": row.Cells[7].Text, "note": row.Cells[8].Text})
+		rows = append(rows, map[string]any{"row": i + 2, "title": row.Cells[1].Text, "number": row.Cells[3].Text, "category": row.Cells[4].Text, "question": row.Cells[5].Text, "options": row.Cells[6].Text, "answer": row.Cells[7].Text})
 	}
 	payload, _ := json.Marshal(map[string]any{"importFormat": "question_table", "rows": rows, "metadata": map[string]any{"direction": "Право & Конституция", "startDate": "2099-01-01T10:00", "endDate": "2099-01-01T11:00", "published": false, "visible": false, "timeLimitMinutes": 30}})
 	preview := buildJSONImportPreview(JSONImportPreviewDTO{OrganizationID: 11, DivisionID: 17, DirectionID: 31, Payload: payload}, "Право & Конституция")

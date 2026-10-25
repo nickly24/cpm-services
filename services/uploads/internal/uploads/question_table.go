@@ -2,7 +2,6 @@ package uploads
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +36,6 @@ var questionTableAliases = map[string][]string{
 	"title": {"название теста"}, "number": {"номер", "номер вопроса", "№"},
 	"category": {"категория вопроса", "тип вопроса"}, "question": {"вопрос"},
 	"options": {"варианты ответов", "варианты ответа"}, "answer": {"правильный ответ", "правильные ответы"},
-	"note": {"примечание к ответу", "примечание"},
 }
 
 // Extract only physical source cells. Tests owns interpretation, validation,
@@ -71,6 +69,7 @@ func questionTableInput(content []byte, fields map[string]string) (json.RawMessa
 	rows := []map[string]any{}
 	for _, row := range records[header+1:] {
 		item := map[string]any{"row": row.number}
+		cellErrors := map[string]string{}
 		nonempty := false
 		for key, col := range columns {
 			cell := row.cells[col]
@@ -81,17 +80,22 @@ func questionTableInput(content []byte, fields map[string]string) (json.RawMessa
 			if cell.kind == "date" && text != "" {
 				stamp, e := time.Parse("2006-01-02 15:04:05.999999", text)
 				if e != nil {
-					return nil, api(422, fmt.Sprintf("question_table_date_row_%d", row.number))
+					cellErrors[key] = "Некорректная дата в ячейке"
 				}
-				text = stamp.Format("02.01.2006")
+				if e == nil {
+					text = stamp.Format("02.01.2006")
+				}
 			}
 			if text != "" && cell.kind != "text" && cell.kind != "number" && cell.kind != "date" {
-				return nil, api(422, fmt.Sprintf("question_table_cell_row_%d", row.number))
+				cellErrors[key] = "В ячейке ошибка Excel или неподдерживаемый тип значения"
 			}
 			item[key] = text
 		}
 		if !nonempty {
 			continue
+		}
+		if len(cellErrors) > 0 {
+			item["cell_errors"] = cellErrors
 		}
 		rows = append(rows, item)
 		if len(rows) > 200 {

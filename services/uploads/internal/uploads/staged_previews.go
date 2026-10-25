@@ -227,12 +227,27 @@ func loadStagedPreview(ctx context.Context, q query, ss Session, lock bool) (sta
 }
 
 func stagedView(ss Session, p stagedPreview) json.RawMessage {
+	// Expose only the editable table source, never the scoped owner envelope.
+	var input struct {
+		Payload json.RawMessage `json:"payload"`
+	}
+	var table struct {
+		Format   string           `json:"importFormat"`
+		Rows     []map[string]any `json:"rows"`
+		Metadata map[string]any   `json:"metadata"`
+	}
+	var source any
+	if ss.Type == "tests.json" && json.Unmarshal(p.Input, &input) == nil && json.Unmarshal(input.Payload, &table) == nil && table.Format == "question_table" {
+		source = table
+	}
+
 	raw, _ := json.Marshal(struct {
 		ID       string          `json:"id"`
 		Revision int64           `json:"revision"`
 		State    string          `json:"state"`
 		Preview  json.RawMessage `json:"preview"`
-	}{ss.ID, p.Revision, "preview", p.Preview})
+		Source   any             `json:"source_table,omitempty"`
+	}{ss.ID, p.Revision, "preview", p.Preview, source})
 	return raw
 }
 

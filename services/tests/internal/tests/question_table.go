@@ -12,7 +12,6 @@ type tableOption struct{ label, text string }
 
 var tableMarker = regexp.MustCompile(`(?m)^[\t ]*([А-ЯЁа-яёA-Za-z]|[0-9]+)[.)][\t ]*`)
 var tableInline = regexp.MustCompile(`[\t \x{00a0}]{2,}([А-ЯЁа-яёA-Za-z0-9])[.)][\t \x{00a0}]+`)
-var tableAllowedAlias = regexp.MustCompile(`«([^»]+)»`)
 var tableDate = regexp.MustCompile(`^([0-9]{1,2})[./]([0-9]{1,2})[./]([0-9]{4})$`)
 
 func tableOptions(text string) ([]tableOption, bool) {
@@ -82,6 +81,14 @@ func jsonImportConvertTable(payload map[string]any, issues *[]JSONImportIssue) (
 		p := fmt.Sprintf("rows[%d]", i)
 		issue := func(field, message string) { jsonImportIssue(issues, p+"."+field, prefix+": "+message) }
 		warn := func(message string) { warnings = append(warnings, prefix+": "+message) }
+		if cells, ok := row["cell_errors"].(map[string]any); ok {
+			for _, field := range []string{"title", "number", "category", "question", "options", "answer"} {
+				if _, exists := cells[field]; exists {
+					issue(field, "исправьте ошибку Excel или тип значения в ячейке")
+				}
+			}
+		}
+
 		sourceTitle := jsonImportString(row["title"])
 		if title == "" {
 			title = sourceTitle
@@ -113,12 +120,6 @@ func jsonImportConvertTable(payload map[string]any, issues *[]JSONImportIssue) (
 				values = []string{match[1] + "." + match[2] + "." + match[3]}
 			} else {
 				values = strings.Split(keyText, "/")
-			}
-			note := jsonImportString(row["note"])
-			if at := strings.Index(strings.ToLower(note), "допустимо:"); at >= 0 {
-				for _, m := range tableAllowedAlias.FindAllStringSubmatch(note[at:], -1) {
-					values = append(values, m[1])
-				}
 			}
 			for _, alias := range values {
 				alias = strings.TrimSpace(alias)
