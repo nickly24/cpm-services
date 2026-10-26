@@ -98,9 +98,6 @@ func questionTableInput(content []byte, fields map[string]string) (json.RawMessa
 			item["cell_errors"] = cellErrors
 		}
 		rows = append(rows, item)
-		if len(rows) > 200 {
-			return nil, api(413, "question_table_question_limit")
-		}
 	}
 	if len(rows) == 0 {
 		return nil, api(422, "question_table_empty")
@@ -110,7 +107,7 @@ func questionTableInput(content []byte, fields map[string]string) (json.RawMessa
 		return nil, err
 	}
 	raw, err := json.Marshal(map[string]any{"importFormat": "question_table", "rows": rows, "metadata": metadata})
-	if len(raw) > 900000 {
+	if len(raw) > stagedInputLimit {
 		return nil, api(413, "owner_input_size_limit")
 	}
 	return raw, err

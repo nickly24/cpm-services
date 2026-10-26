@@ -175,7 +175,11 @@ func sourcePosition(ref string) (int, int, error) {
 
 func sourceWorkbook(content []byte, externalIDs bool, table ...bool) ([]sourceRecord, error) {
 	allowFormatted := len(table) > 0 && table[0]
-	if err := validFile(content, "xlsx", ownerInputMaxRows, allowFormatted); err != nil {
+	maxRows := ownerInputMaxRows
+	if allowFormatted {
+		maxRows = 0 // Question tables have no row-count ceiling.
+	}
+	if err := validFile(content, "xlsx", maxRows, allowFormatted); err != nil {
 		return nil, err
 	}
 	z, err := zip.NewReader(bytes.NewReader(content), int64(len(content)))

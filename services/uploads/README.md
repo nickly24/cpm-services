@@ -29,9 +29,8 @@ See [contract](docs/contracts.md), [process matrix](docs/matrix.md), [Rabbit del
 
 `tests.json` also accepts `.xlsx` question tables: header within the first ten
 rows, columns Название теста, Номер, Категория вопроса, Вопрос, Варианты ответов,
-Правильный ответ, optional Примечание к ответу. Empty formatted cells are ignored;
-archive/formula/external-content/expanded-byte guards remain. At most 200 actual
-questions; source question numbers and physical row numbers are preserved.
+Правильный ответ; Примечание к ответу is ignored. Empty formatted cells are ignored;
+archive/formula/external-content/expanded-byte guards remain. No question-count limit; source question numbers and physical row numbers are preserved.
 Uploads sends raw cells as `importFormat=question_table` to Tests. Tests owns
 answer matching, type inference, aliases, warnings and normal domain validation.
 

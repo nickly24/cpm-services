@@ -10,8 +10,8 @@ import (
 
 type tableOption struct{ label, text string }
 
-var tableMarker = regexp.MustCompile(`(?m)^[\t ]*([А-ЯЁа-яёA-Za-z]|[0-9]+)[.)][\t ]*`)
-var tableInline = regexp.MustCompile(`[\t \x{00a0}]{2,}([А-ЯЁа-яёA-Za-z0-9])[.)][\t \x{00a0}]+`)
+var tableMarker = regexp.MustCompile(`(?m)^[\t ]*([А-ЯЁа-яёA-Za-z]+|[0-9]+)[.)][\t ]*`)
+var tableInline = regexp.MustCompile(`[\t \x{00a0}]{2,}([А-ЯЁа-яёA-Za-z]+|[0-9]+)[.)][\t \x{00a0}]+`)
 var tableDate = regexp.MustCompile(`^([0-9]{1,2})[./]([0-9]{1,2})[./]([0-9]{4})$`)
 
 func tableOptions(text string) ([]tableOption, bool) {
@@ -25,9 +25,9 @@ func tableOptions(text string) ([]tableOption, bool) {
 	seen := map[string]bool{}
 	for i, m := range marks {
 		label := strings.ToUpper(text[m[2]:m[3]])
-		// Single-letter Cyrillic/Latin labels or positive integer labels only.
-		if len([]rune(label)) > 1 {
-			if n, e := strconv.ParseInt(label, 10, 64); e != nil || n < 1 {
+		// Alphabetic labels may span any number of letters (А, АМ, БД).
+		if label[0] >= '0' && label[0] <= '9' {
+			if strings.TrimLeft(label, "0") == "" {
 				return nil, false
 			}
 		}
@@ -66,8 +66,8 @@ func jsonImportConvertTable(payload map[string]any, issues *[]JSONImportIssue) (
 	questions := []any{}
 	title := ""
 	rows, ok := payload["rows"].([]any)
-	if !ok || len(rows) == 0 || len(rows) > 200 {
-		jsonImportIssue(issues, "rows", "В таблице должно быть от 1 до 200 вопросов")
+	if !ok || len(rows) == 0 {
+		jsonImportIssue(issues, "rows", "В таблице должен быть хотя бы один вопрос")
 		rows = nil
 	}
 	for i, value := range rows {
@@ -116,10 +116,14 @@ func jsonImportConvertTable(payload map[string]any, issues *[]JSONImportIssue) (
 			aliases := []any{}
 			seen := map[string]bool{}
 			values := []string{}
-			if match := tableDate.FindStringSubmatch(keyText); match != nil {
-				values = []string{match[1] + "." + match[2] + "." + match[3]}
-			} else {
-				values = strings.Split(keyText, "/")
+			// A line is an alternative; slash also remains supported. Recognize
+			// each date before splitting so 01/02/2026 stays a single answer.
+			for _, line := range strings.Split(strings.ReplaceAll(strings.ReplaceAll(keyText, "\r\n", "\n"), "\r", "\n"), "\n") {
+				if match := tableDate.FindStringSubmatch(strings.TrimSpace(line)); match != nil {
+					values = append(values, match[1]+"."+match[2]+"."+match[3])
+				} else {
+					values = append(values, strings.Split(line, "/")...)
+				}
 			}
 			for _, alias := range values {
 				alias = strings.TrimSpace(alias)

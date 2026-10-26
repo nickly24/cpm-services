@@ -69,9 +69,9 @@ func (d *Dependencies) gatewayActor(r *http.Request) (Actor, bool, error) {
 	}
 	var body []byte
 	if r.Body != nil {
-		body, err = io.ReadAll(io.LimitReader(r.Body, (1<<20)+1))
+		body, err = io.ReadAll(io.LimitReader(r.Body, testBodyLimit+1))
 	}
-	if err != nil || len(body) > 1<<20 {
+	if err != nil || len(body) > testBodyLimit {
 		return Actor{}, true, invalid
 	}
 	r.Body = io.NopCloser(bytes.NewReader(body))

@@ -49,7 +49,7 @@ func (s *Server) create(r *http.Request, a Actor, sc Scope) (any, int, error) {
 		rows := t.MaxRows
 		table := t.ID == "tests.json" && ext == "xlsx"
 		if table {
-			rows = ownerInputMaxRows
+			rows = 0
 		}
 		if e = validFile(content, ext, rows, table); e != nil {
 			return nil, 0, e

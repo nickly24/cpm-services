@@ -40,7 +40,7 @@ func validFile(content []byte, ext string, maxRows int, formatted ...bool) error
 				return api(400, "invalid_csv")
 			}
 			rows++
-			if rows > maxRows+1 {
+			if maxRows > 0 && rows > maxRows+1 {
 				return api(413, "row_limit_exceeded")
 			}
 		}
@@ -106,7 +106,7 @@ func validFile(content []byte, ext string, maxRows int, formatted ...bool) error
 						if el.Name.Local == "row" {
 							rows++
 							cells = 0
-							if rows > maxRows+11 {
+							if maxRows > 0 && rows > maxRows+11 {
 								return api(413, "row_limit_exceeded")
 							}
 						}

@@ -14,6 +14,9 @@ import (
 
 const MaxMessageBytes = 4 << 20
 
+// Content change events carry both full snapshots; grading events carry IDs.
+const MaxContentMessageBytes = 16 << 20
+
 var ErrInvalidMessage = errors.New("invalid message")
 var ErrMessageConflict = errors.New("message ID already contains another body")
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
@@ -77,7 +80,11 @@ func ParseMessage(body []byte, routingKey string, now time.Time) (Message, error
 	invalid := func(reason string) (Message, error) {
 		return Message{}, fmt.Errorf("%w: %s", ErrInvalidMessage, reason)
 	}
-	if len(body) == 0 || len(body) > MaxMessageBytes {
+	limit := MaxMessageBytes
+	if routingKey == "tests.content.changed.v1" {
+		limit = MaxContentMessageBytes
+	}
+	if len(body) == 0 || len(body) > limit {
 		return invalid("size")
 	}
 	if err := validateJSON(body); err != nil {

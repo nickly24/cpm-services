@@ -72,7 +72,7 @@ func CheckPractice(input PracticeInput) (PracticeResult, error) {
 		return result, errPractice
 	}
 	if q.Type == "text" {
-		if len(q.Answers) != 0 || len(q.CorrectAnswers) == 0 || len(q.CorrectAnswers) > 100 {
+		if len(q.Answers) != 0 || len(q.CorrectAnswers) == 0 {
 			return result, errPractice
 		}
 		var value string
@@ -89,7 +89,7 @@ func CheckPractice(input PracticeInput) (PracticeResult, error) {
 		}
 		result.CorrectAnswer = append([]string(nil), q.CorrectAnswers...)
 	} else {
-		if q.Type != "single" && q.Type != "multiple" || len(q.Answers) < 2 || len(q.Answers) > 100 || len(q.CorrectAnswers) != 0 {
+		if q.Type != "single" && q.Type != "multiple" || len(q.Answers) < 2 || len(q.CorrectAnswers) != 0 {
 			return result, errPractice
 		}
 		options := map[string]bool{}
@@ -152,7 +152,7 @@ func lowerText(value string) string {
 // a synchronous, stateless calculation without official submissions or events.
 func FinishPractice(input PracticeFinishInput) (GradeResult, error) {
 	result := GradeResult{Questions: []QuestionResult{}}
-	if len(input.Questions) == 0 || len(input.Questions) > 200 || len(input.Answers) > len(input.Questions) {
+	if len(input.Questions) == 0 || len(input.Answers) > len(input.Questions) {
 		return result, errPractice
 	}
 	answers := map[int64]json.RawMessage{}

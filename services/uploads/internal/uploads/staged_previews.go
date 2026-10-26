@@ -16,7 +16,7 @@ import (
 
 // Tests validates stateless domain input. Uploads stores the input and its exact
 // validated preview; this adapter never creates tests or writes subject results.
-const stagedInputLimit = 1 << 20
+const stagedInputLimit = (16 << 20) - 1   // MEDIUMBLOB storage envelope, not a question-count limit.
 const stagedPreviewLimit = (16 << 20) - 1 // MEDIUMBLOB's exact maximum.
 
 type stagedJSONInput struct {

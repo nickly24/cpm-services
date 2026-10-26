@@ -224,14 +224,14 @@ func legacyImportFileSchema() map[string]any {
 	question := map[string]any{"type": "object", "required": []string{"questionId", "type", "text", "points"}, "properties": map[string]any{
 		"questionId": map[string]any{"type": "integer", "minimum": 1, "maximum": int64(9007199254740991)}, "type": map[string]any{"enum": []string{"single", "multiple", "text"}},
 		"text": map[string]any{"type": "string", "minLength": 1, "maxLength": 4000}, "points": map[string]any{"type": "integer", "minimum": 1, "maximum": 100000},
-		"answers": map[string]any{"type": "array", "maxItems": 50, "items": option}, "correctAnswers": map[string]any{"type": "array", "maxItems": 50, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 1000}},
+		"answers": map[string]any{"type": "array", "items": option}, "correctAnswers": map[string]any{"type": "array", "items": map[string]any{"type": "string", "minLength": 1, "maxLength": 1000}},
 	}}
 	return map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "required": []string{"title", "questions", "startDate", "endDate"}, "properties": map[string]any{
 		"title": map[string]any{"type": "string", "minLength": 1, "maxLength": 200}, "direction": map[string]any{"type": "string", "description": "Пустое имя заполняется выбранным направлением; непустое должно совпадать с его текущим именем"},
 		"startDate": map[string]any{"type": "string", "description": "RFC3339 либо старый локальный формат YYYY-MM-DDTHH:mm, московское время"},
 		"endDate":   map[string]any{"type": "string"}, "timeLimitMinutes": map[string]any{"type": "integer", "minimum": 0, "maximum": 1440},
 		"published": map[string]any{"type": "boolean", "default": true}, "visible": map[string]any{"type": "boolean", "default": false},
-		"questions": map[string]any{"type": "array", "minItems": 1, "maxItems": 200, "items": question}},
+		"questions": map[string]any{"type": "array", "minItems": 1, "items": question}},
 		"description": "single: ровно один верный вариант; multiple: хотя бы один; text: непустые correctAnswers и пустые answers. Публикация требует обе даты и положительное время. Окончательную проверку выполняет Tests preview."}
 }
 
@@ -246,7 +246,7 @@ func (s *Server) jsonTemplateSchema(r *http.Request, a Actor, division int64) (a
 	}
 	fileSchema := legacyImportFileSchema()
 	if format == "question_table" {
-		fileSchema = map[string]any{"type": "string", "format": "binary", "required_columns": []string{"Название теста", "Номер", "Категория вопроса", "Вопрос", "Варианты ответов", "Правильный ответ"}, "optional_columns": []string{"Примечание к ответу"}, "max_questions": 200}
+		fileSchema = map[string]any{"type": "string", "format": "binary", "required_columns": []string{"Название теста", "Номер", "Категория вопроса", "Вопрос", "Варианты ответов", "Правильный ответ"}, "optional_columns": []string{"Примечание к ответу"}}
 	}
 	if format == "online_test_pad" {
 		fileSchema = map[string]any{"type": "string", "description": "Файл .js содержит var test = { ... }; объект разбирается как JSON без выполнения JavaScript. Name, Questions[].AnswerType (10/210/410/420), Text, maxScore/RightScore, AnswerTemplates[] с Text/ValueText/ValueInt/ValueFloat, IsRightAnswer/Score.", "converted_schema": fileSchema}

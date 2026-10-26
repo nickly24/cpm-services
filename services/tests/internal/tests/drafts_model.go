@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -62,7 +61,7 @@ type DraftListView struct {
 }
 
 func validateDraft(in DraftDTO) error {
-	if !validText(in.Title, 200, false) || !validText(in.Description, 2000, false) || in.DirectionID < 0 || len(in.Questions) > 200 || len(in.Layout) > 200 {
+	if !validText(in.Title, 200, false) || !validText(in.Description, 2000, false) || in.DirectionID < 0 {
 		return bad("invalid_draft")
 	}
 	ids := map[int64]bool{}
@@ -71,7 +70,7 @@ func validateDraft(in DraftDTO) error {
 			return bad("invalid_draft_question")
 		}
 		ids[q.QuestionID] = true
-		if q.Type != "" && q.Type != "single" && q.Type != "multiple" && q.Type != "text" || len(q.Answers) > 50 || len(q.CorrectAnswers) > 50 {
+		if q.Type != "" && q.Type != "single" && q.Type != "multiple" && q.Type != "text" {
 			return bad("invalid_draft_question")
 		}
 		options := map[string]bool{}
@@ -93,10 +92,6 @@ func validateDraft(in DraftDTO) error {
 			return bad("invalid_draft_layout")
 		}
 		positions[p.QuestionID] = true
-	}
-	raw, e := json.Marshal(in)
-	if e != nil || len(raw) > 400000 {
-		return bad("draft_too_large")
 	}
 	return nil
 }

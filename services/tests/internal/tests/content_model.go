@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"reflect"
 	"regexp"
 	"sort"
@@ -124,9 +123,9 @@ func contentView(d Document) ContentView {
 
 var optionIdentifier = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
-// The bound keeps a complete before/after message below Rabbit's payload limit.
+// Question and option counts are not a business limit. Validate their meaning.
 func validateQuestions(qs []Question, allowEmpty bool) error {
-	if len(qs) > 200 || !allowEmpty && len(qs) == 0 {
+	if !allowEmpty && len(qs) == 0 {
 		return bad("invalid_question_count")
 	}
 	ids := map[int64]bool{}
@@ -137,7 +136,7 @@ func validateQuestions(qs []Question, allowEmpty bool) error {
 		ids[q.QuestionID] = true
 		switch q.Type {
 		case "single", "multiple":
-			if len(q.Answers) < 2 || len(q.Answers) > 50 || len(q.CorrectAnswers) > 0 {
+			if len(q.Answers) < 2 || len(q.CorrectAnswers) > 0 {
 				return bad("invalid_choice_question")
 			}
 			seen := map[string]bool{}
@@ -155,7 +154,7 @@ func validateQuestions(qs []Question, allowEmpty bool) error {
 				return bad("invalid_correct_options")
 			}
 		case "text":
-			if len(q.Answers) > 0 || len(q.CorrectAnswers) < 1 || len(q.CorrectAnswers) > 50 {
+			if len(q.Answers) > 0 || len(q.CorrectAnswers) < 1 {
 				return bad("invalid_text_question")
 			}
 			seen := map[string]bool{}
@@ -169,10 +168,6 @@ func validateQuestions(qs []Question, allowEmpty bool) error {
 		default:
 			return bad("invalid_question_type")
 		}
-	}
-	raw, _ := json.Marshal(qs)
-	if len(raw) > 400000 {
-		return bad("content_too_large")
 	}
 	return nil
 }

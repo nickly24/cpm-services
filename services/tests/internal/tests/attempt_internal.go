@@ -116,7 +116,7 @@ func (s *Server) practiceAnswer(r *http.Request, actor Actor, _ int64) (any, int
 		Status bool           `json:"status"`
 		Data   map[string]any `json:"data"`
 	}
-	if response.StatusCode != 200 || json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&payload) != nil || !payload.Status {
+	if response.StatusCode != 200 || json.NewDecoder(io.LimitReader(response.Body, testBodyLimit)).Decode(&payload) != nil || !payload.Status {
 		return nil, 0, unavailable
 	}
 	points, validPoints := payload.Data["points"].(float64)
@@ -150,7 +150,7 @@ func (s *Server) batchAnswers(r *http.Request, actor Actor, _ int64) (any, int, 
 	if e := decode(r, &input); e != nil {
 		return nil, 0, e
 	}
-	if len(input.Answers) < 1 || len(input.Answers) > 200 {
+	if len(input.Answers) < 1 {
 		return nil, 0, bad("invalid_answer_batch")
 	}
 	a, e := s.loadAttempt(r, actor)
@@ -219,7 +219,7 @@ func (s *Server) finishPractice(r *http.Request, a Attempt) (any, int, error) {
 		Status bool        `json:"status"`
 		Data   GradeResult `json:"data"`
 	}
-	if response.StatusCode != 200 || json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&payload) != nil || !payload.Status {
+	if response.StatusCode != 200 || json.NewDecoder(io.LimitReader(response.Body, testBodyLimit)).Decode(&payload) != nil || !payload.Status {
 		return nil, 0, unavailable
 	}
 	grade := payload.Data

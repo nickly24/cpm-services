@@ -709,7 +709,7 @@ func (s *Server) jsonImportAccess(r *http.Request, a Actor, in JSONImportPreview
 	if !a.Can(true) || !actorUpload(a, true) || in.OrganizationID != a.OrganizationID || in.DivisionID < 1 || !a.InDivision(in.DivisionID) || pathDivision > 0 && pathDivision != in.DivisionID {
 		return References{}, denied
 	}
-	if in.DirectionID < 1 || len(in.Payload) == 0 || len(in.Payload) > 900000 {
+	if in.DirectionID < 1 || len(in.Payload) == 0 {
 		return References{}, bad("invalid_json_import_request")
 	}
 	refs, e := s.Dependencies.References(r.Context(), in.OrganizationID, []int64{in.DivisionID}, &in.DirectionID)

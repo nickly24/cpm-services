@@ -71,8 +71,8 @@ func (c *TestsClient) call(ctx context.Context, method, path string, input, outp
 		return errors.New("tests_transport_unavailable")
 	}
 	defer response.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(response.Body, MaxMessageBytes+1))
-	if err != nil || len(raw) > MaxMessageBytes {
+	raw, err := io.ReadAll(io.LimitReader(response.Body, (16<<20)+1))
+	if err != nil || len(raw) > 16<<20 {
 		return errors.New("tests_response_unavailable")
 	}
 	var envelope struct {

@@ -49,11 +49,11 @@ func readImportWire(r *http.Request) (importWire, error) {
 	if strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]) != "application/json" {
 		return out, &APIError{415, "json_required"}
 	}
-	raw, err := io.ReadAll(io.LimitReader(r.Body, (1<<20)+1))
+	raw, err := io.ReadAll(io.LimitReader(r.Body, testBodyLimit+1))
 	if err != nil {
 		return out, bad("invalid_request")
 	}
-	if len(raw) > 1<<20 {
+	if len(raw) > testBodyLimit {
 		return out, &APIError{413, "import_request_too_large"}
 	}
 	if err = uniqueImportJSON(raw); err != nil {

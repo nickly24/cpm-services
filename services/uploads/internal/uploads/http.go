@@ -174,7 +174,7 @@ func (s *Server) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "private, no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		r.Body = http.MaxBytesReader(w, r.Body, (8<<20)+(64<<10))
+		r.Body = http.MaxBytesReader(w, r.Body, 16<<20)
 		ctx, c := context.WithTimeout(r.Context(), 110*time.Second)
 		defer c()
 		m.ServeHTTP(w, r.WithContext(ctx))

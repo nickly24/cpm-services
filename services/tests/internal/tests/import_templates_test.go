@@ -102,6 +102,10 @@ func templateTestDependencies(t *testing.T) *Dependencies {
 		_ = json.NewEncoder(w).Encode(map[string]any{"status": true, "active": true, "user": actor})
 	}))
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.URL.Path == "/internal/core/organizations/11/test-settings" {
+			reply(w, 200, Envelope{true, map[string]any{"organization_id": 11, "recalculate_on_test_change": true, "revision": 1}})
+			return
+		}
 		var in struct {
 			OrganizationID int64   `json:"organization_id"`
 			DivisionIDs    []int64 `json:"division_ids"`

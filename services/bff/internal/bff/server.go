@@ -101,7 +101,7 @@ func (s *Server) callResponse(ctx context.Context, base, method, path, token str
 	}
 	defer res.Body.Close()
 	responseLimit := int64(8 << 20)
-	if base != "" && (base == s.config.Exams || base == s.config.Ratings || base == s.config.Core || base == s.config.Cards) {
+	if base != "" && (base == s.config.Exams || base == s.config.Ratings || base == s.config.Core || base == s.config.Cards || base == s.config.Tests) {
 		responseLimit = 64 << 20
 	}
 	if base != "" && base == s.config.Uploads {
@@ -253,7 +253,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		bodyLimit = (8 << 20) + (64 << 10)
 	}
 	if publicUpload {
-		bodyLimit = (8 << 20) + (64 << 10)
+		bodyLimit = 16 << 20
+	}
+	if strings.HasPrefix(path, "tests/") {
+		bodyLimit = 16 << 20
 	}
 	if cardsRoute(r.Method, strings.TrimPrefix(path, "cards/")) != "" && strings.HasPrefix(path, "cards/") {
 		bodyLimit = 10 << 20

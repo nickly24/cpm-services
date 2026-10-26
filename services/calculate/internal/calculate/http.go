@@ -214,7 +214,7 @@ func decodePractice(w http.ResponseWriter, r *http.Request, target any) bool {
 		fail(w, http.StatusUnsupportedMediaType, "json_required")
 		return false
 	}
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 16<<20))
 	if err != nil || validateJSON(body) != nil {
 		fail(w, http.StatusBadRequest, "invalid_json")
 		return false

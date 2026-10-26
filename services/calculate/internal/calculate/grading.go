@@ -44,7 +44,7 @@ type CalculationResult struct {
 func GradeOfficial(input CalculationInput) (GradeResult, error) {
 	result := GradeResult{Questions: []QuestionResult{}}
 	regrade := input.Operation == "regrade"
-	if input.Operation != "initial_grade" && !regrade || len(input.Questions) > 200 || !regrade && len(input.Questions) == 0 || len(input.QuestionOrder) > 200 || len(input.Answers) > 200 {
+	if input.Operation != "initial_grade" && !regrade || !regrade && len(input.Questions) == 0 {
 		return result, ErrInvalidGradeInput
 	}
 	excluded := map[int64]bool{}
@@ -140,7 +140,7 @@ func historicalRemovedOption(q Question, value json.RawMessage) bool {
 		return string(value) != "null" && json.Unmarshal(value, &selected) == nil && !known[selected]
 	case "multiple":
 		var selected []string
-		if json.Unmarshal(value, &selected) != nil || selected == nil || len(selected) > 100 {
+		if json.Unmarshal(value, &selected) != nil || selected == nil {
 			return false
 		}
 		seen, removed := map[string]bool{}, false
