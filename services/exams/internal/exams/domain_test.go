@@ -438,7 +438,7 @@ func TestDomainStrictDTOsFiltersAndAtomicFailures(t *testing.T) {
 	f.fail(t, f.admin, "question-create", `{"part_id":999,"question_text":"X","answer_text":"Y"}`, "not_found")
 	f.p.Query = map[string]string{"q": "Question 1-", "limit": "1", "offset": "2"}
 	page := queryDomain(t, f, f.admin, "questions").(map[string]any)
-	if page["total"] != 4 || len(page["items"].([]any)) != 1 || page["items"].([]any)[0].(Question).Text != "Question 1-2" {
+	if page["total"] != 4 || len(page["items"].([]any)) != 1 || page["items"].([]any)[0].(map[string]any)["question_text"] != "Question 1-2" {
 		t.Fatal("filter after pagination", page)
 	}
 	// Draft part is permitted, but a draft exam cannot start until configured.
@@ -563,7 +563,7 @@ func TestDomainBankPartOrderAndMovedQuestion(t *testing.T) {
 	f.cmd(t, f.admin, "question-create", map[string]any{"part_id": a, "question_text": "Late A", "answer_text": "Late A answer"})
 	rows := queryDomain(t, f, f.admin, "questions").(map[string]any)["items"].([]any)
 	for i, row := range rows {
-		part := row.(Question).PartID
+		part := row.(map[string]any)["part_id"].(int64)
 		if i < 5 && part != a || i >= 5 && part != b {
 			t.Fatal("questions not grouped in part order", i, part)
 		}
@@ -573,7 +573,7 @@ func TestDomainBankPartOrderAndMovedQuestion(t *testing.T) {
 	f.cmd(t, f.admin, "question-update", map[string]any{"expected_revision": q.Revision, "part_id": b})
 	f.p.Query = map[string]string{"part_id": fmt.Sprint(b)}
 	rows = queryDomain(t, f, f.admin, "questions").(map[string]any)["items"].([]any)
-	if len(rows) != 5 || rows[4].(Question).ID != q.ID {
+	if len(rows) != 5 || rows[4].(map[string]any)["id"].(int64) != q.ID {
 		t.Fatal("moved question was not appended to target part", rows)
 	}
 }

@@ -1061,16 +1061,15 @@ func configurationErrors(e *Exam, d *Division, reserve int) []readinessError {
 	for _, code := range validateThresholds(maxScore(e.Parts), c.Thresholds) {
 		add(code, 0, 0, 0)
 	}
+	bankSizes := map[int64]int{}
+	for _, q := range e.Questions {
+		bankSizes[q.PartID]++
+	}
 	for _, part := range e.Parts {
 		if part.Weight < 1 || part.Weight > 1000 || part.Quota < 1 || part.Quota > 100 {
 			add("part_settings_required", part.ID, 0, 0)
 		}
-		available := 0
-		for _, q := range e.Questions {
-			if q.PartID == part.ID {
-				available++
-			}
-		}
+		available := bankSizes[part.ID]
 		if available < part.Quota+reserve {
 			add("part_bank_too_small", part.ID, part.Quota+reserve, available)
 		}
@@ -1099,15 +1098,18 @@ func configurationErrors(e *Exam, d *Division, reserve int) []readinessError {
 }
 func readiness(e *Exam, d *Division, as *Assignment, p Params, window bool) map[string]any {
 	base := configurationErrors(e, d, 0)
-	errors := append([]readinessError(nil), base...)
-	if errors == nil {
-		errors = []readinessError{}
-	}
+	assignmentErrors := base
 	if as != nil {
-		errors = configurationErrors(e, d, d.Privileges[as.Student.AccountID].Limit)
-		if errors == nil {
-			errors = []readinessError{}
-		}
+		assignmentErrors = configurationErrors(e, d, d.Privileges[as.Student.AccountID].Limit)
+	}
+	return readinessReport(d, as, p, window, base, assignmentErrors)
+}
+
+// Cached configuration slices are read-only; detach before adding current
+// member/window errors so one row cannot contaminate another row's readiness.
+func readinessReport(d *Division, as *Assignment, p Params, window bool, base, assignmentErrors []readinessError) map[string]any {
+	errors := append([]readinessError{}, assignmentErrors...)
+	if as != nil {
 		if err := validateExistingMembers(as.Members, p); err != nil {
 			errors = append(errors, readinessError{Code: err.Error(), Blocking: true})
 		}

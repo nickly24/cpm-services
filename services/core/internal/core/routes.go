@@ -39,6 +39,7 @@ func (s *Server) specs() []routeSpec {
 		{"PUT /v1/core/schools/{school}", "Редактирование/деактивация школы: только полный администратор", s.schoolSave, SchoolDTO{}},
 		{"GET /v1/core/attendance-types", "Типы посещения", s.attendanceTypes, nil},
 		{"GET /v1/core/audit", "Аудит своей организации: только полный администратор", s.auditList, nil},
+		{"GET /v1/core/divisions/{division}/exam-participants", "Активные ученики и экзаменаторы: exams.view или users.view, с пагинацией", s.examParticipants, nil},
 		{"GET /v1/core/divisions/{division}/users", "Пользователи: users.view, своя запись или ученики своей группы для проктора", s.users, nil},
 		{"GET /v1/core/divisions/{division}/students", "Ученики доступной области: своя группа проктора либо users.view", s.students, nil},
 		{"GET /v1/core/divisions/{division}/dashboard", "Сводка выбранного подразделения с учётом прав; скрытые счётчики null", s.dashboard, nil},
@@ -173,6 +174,9 @@ func openAPI() map[string]any {
 			if strings.HasSuffix(path, "/dashboard") {
 				keys = nil
 			}
+			if strings.HasSuffix(path, "/exam-participants") {
+				keys = []string{"limit", "offset", "q", "role", "after_id"}
+			}
 			if strings.HasSuffix(path, "/students") {
 				keys = []string{"limit", "offset", "q", "role", "unassigned"}
 			}
@@ -182,6 +186,13 @@ func openAPI() map[string]any {
 		}
 		op := map[string]any{"summary": r.Summary, "security": []any{map[string]any{"bearerAuth": []string{}}}, "parameters": params, "responses": map[string]any{"200": map[string]string{"description": "Результат {status:true,data:...}"}, "201": map[string]string{"description": "Создано"}, "400": map[string]string{"description": "Неверные данные"}, "401": map[string]string{"description": "Недействующий токен"}, "403": map[string]string{"description": "Нет права/контекста"}, "404": map[string]string{"description": "Объект вне области доступа или отсутствует"}, "409": map[string]string{"description": "Конфликт или запрет удаления истории"}, "503": map[string]string{"description": "Auth/БД недоступны; доступ закрыт"}}}
 		var output any
+		if strings.HasSuffix(path, "/exam-participants") {
+			output = examParticipantPageView{}
+			op["description"] = "Active students/examiners of selected division only. Requires exams.view or users.view. limit 1..200, offset 0..100000; role student or examinator; q searches full name/login/account ID. after_id enables keyset export, requires zero offset and omits total to avoid counting each page. IDs are auth account IDs, profile_id is informational. No credentials."
+		}
+		if path == "/v1/core/organization/users/{user}/memberships" {
+			op["description"] = "Response data includes account_id, role, is_active, owner_organization_id, can_assign, can_revoke and memberships. The minimal account projection supports single-account membership validation without a complete organization roster."
+		}
 		if strings.Contains(path, "/reports/") {
 			output = CoreReport{}
 		}
@@ -193,6 +204,10 @@ func openAPI() map[string]any {
 		}
 		if output != nil {
 			outputSchema := schema(reflect.TypeOf(output))
+			if _, ok := output.(examParticipantPageView); ok {
+				outputSchema["required"] = []string{"items", "limit", "offset"}
+				outputSchema["properties"].(map[string]any)["total"].(map[string]any)["description"] = "Included for offset pages; omitted for after_id cursor export."
+			}
 			if _, ok := output.(CredentialImportSessionView); ok {
 				outputSchema["required"] = []string{"id", "organization_id", "division_id", "actor_id", "status", "users", "report", "created_at", "authorization_proof", "source_sha256", "source_provenance", "owner_request_sha256", "owner_preview_expires_at"}
 				props := outputSchema["properties"].(map[string]any)
@@ -208,6 +223,9 @@ func openAPI() map[string]any {
 		}
 		if r.DTO != nil {
 			inputSchema := schema(reflect.TypeOf(r.DTO))
+			if _, ok := r.DTO.(UserDTO); ok {
+				inputSchema["properties"].(map[string]any)["division_ids"] = map[string]any{"type": "array", "maxItems": 100, "items": map[string]any{"type": "integer", "minimum": 1}, "description": "Optional extra examiner divisions, full organization administrator only. Current division always included. Active same-organization memberships and account are created atomically; existing account distribution uses the membership endpoint."}
+			}
 			if _, ok := r.DTO.(OrganizationTestSettingsDTO); ok {
 				inputSchema = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"expected_revision", "recalculate_on_test_change"}, "properties": map[string]any{"expected_revision": map[string]any{"type": "integer", "minimum": 0}, "recalculate_on_test_change": map[string]any{"type": "boolean"}}}
 			}

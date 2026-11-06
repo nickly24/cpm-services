@@ -126,6 +126,21 @@ func examsOpenAPI() map[string]any {
 	schemas["RatingSnapshot"] = openAPIObject(map[string]any{"source": map[string]any{"const": "exams"}, "organization_id": id(), "division_ids": openAPIArray(id()), "date_from": date, "date_to": date, "as_of": at, "source_revision": str(), "revisions": openAPIArray(openAPIObject(map[string]any{"exam_id": id(), "division_id": id(), "exam_revision": rev(), "division_revision": rev()}, "exam_id", "division_id", "exam_revision", "division_revision")), "next_exam_start_at": at, "exams": openAPIArray(openAPIRef("RatingCatalog")), "results": openAPIArray(openAPIRef("RatingResult"))}, "source", "organization_id", "division_ids", "date_from", "date_to", "as_of", "source_revision", "revisions", "exams", "results")
 	schemas["ExamDetail"] = openAPIObject(map[string]any{"id": id(), "organization_id": id(), "division_id": id(), "division_revision": rev(), "direction_id": id(), "exam_type": str(), "revision": rev(), "content_revision": rev(), "date": str(), "config": openAPIRef("Config"), "parts": openAPIArray(openAPIRef("Part")), "training_enabled": boolean(), "readiness": openAPIRef("Readiness")}, "id", "organization_id", "division_id", "direction_id", "exam_type", "revision", "content_revision")
 	properties := func(name string) map[string]any { return schemas[name].(map[string]any)["properties"].(map[string]any) }
+	properties("Question")["part_code"] = str()
+	properties("Commission")["assigned_students_count"] = rev()
+	properties("Assignment")["readiness"] = openAPIRef("Readiness")
+	for _, key := range []string{"parts_count", "cards_count", "assigned_students_count"} {
+		properties("ExamSummary")[key] = rev()
+	}
+	properties("Result")["first_attempt_id"] = rev()
+	properties("Result")["retake_assignment_id"] = map[string]any{"type": []string{"integer", "null"}, "minimum": 1}
+	properties("TrainingView")["cards_total"] = rev()
+	properties("TrainingView")["parts_count"] = rev()
+	properties("TrainingView")["cards_pagination"] = openAPIObject(map[string]any{"total": rev(), "limit": rev(), "offset": rev()}, "total", "limit", "offset")
+	trainingExam := properties("TrainingView")["exam"].(map[string]any)["properties"].(map[string]any)
+	trainingExam["name"] = str()
+	trainingExam["exam_date"] = map[string]any{"type": []string{"string", "null"}, "format": "date"}
+
 	properties("RatingCatalog")["exam_name"] = str()
 	properties("ExamCreate")["name"] = map[string]any{"type": "string", "maxLength": 250}
 	schemas["CommissionCreate"].(map[string]any)["required"] = []string{"examinator_ids"}
@@ -260,6 +275,9 @@ func examsOpenAPI() map[string]any {
 	add("get", "/v1/exams", "", page(openAPIRef("ExamSummary")), "Catalog in the authenticated organization and selected division")
 	add("post", "/v1/exams", "ExamCreate", openAPIRef("ExamSummary"), "Create an exam in the selected division. Outside exams require date; classic exams reject date.")
 	add("get", "/v1/exams/{exam}", "", openAPIRef("ExamDetail"), "Role-specific exam detail; administrators receive conduct configuration")
+	add("get", "/v1/exams/{exam}/overview", "", openAPIObject(map[string]any{"exam": openAPIRef("ExamDetail"), "counts": map[string]any{"type": "object", "additionalProperties": rev()}, "average_grade": map[string]any{"type": []string{"number", "null"}}}, "exam", "counts", "average_grade"), "Administrator overview using compact SQL counts; no question text or protocols")
+	add("get", "/v1/exams/student-results", "", page(openAPIObject(map[string]any{"exam": openAPIRef("ExamSummary"), "result": map[string]any{"anyOf": []any{openAPIRef("Result"), openAPIRef("OutsideResult")}}}, "exam", "result")), "Current student's own results across exams in the selected division, filtered before pagination")
+
 	add("get", "/v1/exams/{exam}/config", "", openAPIObject(map[string]any{"config": openAPIRef("Config"), "max_score": rev(), "local_validation": openAPIArray(openAPIRef("ReadinessError"))}, "config", "max_score", "local_validation"), "Administrator configuration and validation")
 	add("put", "/v1/exams/{exam}/config", "ConfigCommand", command("config", "Config"), "Update selected division rules using the configuration revision")
 	for _, collection := range []struct{ name, parameter, item, create, update string }{
@@ -275,6 +293,8 @@ func examsOpenAPI() map[string]any {
 	add("put", "/v1/exams/{exam}/privileges/{student}", "PrivilegeCommand", command("privilege", "Privilege"), "Use revision 0 to create a replacement privilege")
 	add("delete", "/v1/exams/{exam}/privileges/{student}", "RevisionCommand", command("privilege", "Privilege"), "Delete the replacement privilege")
 	schemas["Privilege"] = openAPIObject(map[string]any{"replacement_limit": rev(), "revision": rev()}, "replacement_limit", "revision")
+	properties("Privilege")["student_account_id"] = id()
+	properties("Privilege")["student"] = openAPIRef("Member")
 	add("get", "/v1/exams/{exam}/readiness", "", openAPIRef("Readiness"), "Administrative readiness of configuration and live participants")
 	add("get", "/v1/exams/{exam}/attempts", "", page(openAPIRef("Attempt")), "Attempts visible to the administrator or assigned examiner")
 	add("post", "/v1/exams/{exam}/assignments/{assignment}/attempts/ensure", "HistoryCommand", openAPIRef("LifecycleResponse"), "Assigned examiner creates or returns a pending attempt in this history generation")
@@ -344,18 +364,18 @@ func examsOpenAPI() map[string]any {
 			}
 			op := raw.(map[string]any)
 			params := op["parameters"].([]any)
-			if strings.HasSuffix(path, "/questions") || strings.HasSuffix(path, "/training") {
+			if strings.HasSuffix(path, "/parts") || strings.HasSuffix(path, "/questions") || strings.HasSuffix(path, "/training") {
 				params = append(params, map[string]any{"name": "part_id", "in": "query", "schema": id()})
 			}
-			if path == "/v1/exams" || strings.HasSuffix(path, "/parts") || strings.HasSuffix(path, "/questions") || strings.HasSuffix(path, "/commissions") || strings.HasSuffix(path, "/assignments") || strings.HasSuffix(path, "/privileges") || strings.HasSuffix(path, "/attempts") || strings.HasSuffix(path, "/results") || strings.HasSuffix(path, "/protocol") || strings.HasSuffix(path, "/rounds") || strings.HasSuffix(path, "/{session}") {
+			if path == "/v1/exams" || path == "/v1/exams/student-results" || strings.HasSuffix(path, "/training") || strings.HasSuffix(path, "/parts") || strings.HasSuffix(path, "/questions") || strings.HasSuffix(path, "/commissions") || strings.HasSuffix(path, "/assignments") || strings.HasSuffix(path, "/privileges") || strings.HasSuffix(path, "/attempts") || strings.HasSuffix(path, "/results") || strings.HasSuffix(path, "/protocol") || strings.HasSuffix(path, "/rounds") || strings.HasSuffix(path, "/{session}") {
 				params = append(params, map[string]any{"name": "limit", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 200}}, map[string]any{"name": "offset", "in": "query", "schema": rev()}, map[string]any{"name": "q", "in": "query", "schema": str()})
 			}
-			if path == "/v1/exams" {
+			if path == "/v1/exams" || path == "/v1/exams/student-results" {
 				params = append(params, map[string]any{"name": "type", "in": "query", "schema": openAPIEnum("classic", "outside_lms")})
 				params = append(params, map[string]any{"name": "direction_id", "in": "query", "schema": id()})
 				params = append(params, map[string]any{"name": "scope", "in": "query", "schema": openAPIEnum("division", "bank", "organization")}, map[string]any{"name": "sort", "in": "query", "schema": openAPIEnum("date_asc", "date_desc", "created_desc", "direction_asc")})
 			}
-			if path == "/v1/exams" || strings.HasSuffix(path, "/results") || strings.HasSuffix(path, "/results/{student}") {
+			if path == "/v1/exams" || path == "/v1/exams/student-results" || strings.HasSuffix(path, "/results") || strings.HasSuffix(path, "/results/{student}") {
 				for _, name := range []string{"date_from", "date_to", "from_date", "to_date"} {
 					params = append(params, map[string]any{"name": name, "in": "query", "description": "Inclusive current selected-division exam date; classic start uses fixed UTC+03, outside uses date. Equal canonical and legacy aliases are accepted; conflicts are 400. Filtering occurs before pagination.", "schema": date})
 				}
@@ -372,6 +392,35 @@ func examsOpenAPI() map[string]any {
 					name = "through_round_no"
 				}
 				params = append(params, map[string]any{"name": name, "in": "query", "description": "Stable upper bound returned by the first page; send unchanged for the remaining pages", "schema": rev()})
+			}
+			if path == "/v1/exams" {
+				params = append(params, map[string]any{"name": "training", "in": "query", "schema": boolean()})
+			}
+			if strings.HasSuffix(path, "/training") {
+				for _, key := range []string{"summary", "preview"} {
+					params = append(params, map[string]any{"name": key, "in": "query", "schema": boolean()})
+				}
+				params = append(params, map[string]any{"name": "batch_index", "in": "query", "schema": rev()}, map[string]any{"name": "batch_size", "in": "query", "description": "Preview only; no settings are persisted", "schema": map[string]any{"type": "integer", "enum": []int{10, 20, 30}}})
+			}
+			if strings.HasSuffix(path, "/assignments") {
+				params = append(params, map[string]any{"name": "include_readiness", "in": "query", "description": "Current references for visible rows only; batches of at most500 IDs", "schema": boolean()}, map[string]any{"name": "status", "in": "query", "schema": openAPIEnum("not_started", "pending_ready", "in_progress", "completed")})
+			}
+			if strings.HasSuffix(path, "/assignments") || strings.HasSuffix(path, "/attempts") {
+				params = append(params, map[string]any{"name": "attempt_no", "in": "query", "schema": map[string]any{"type": "integer", "enum": []int{1, 2}}})
+			}
+			if strings.HasSuffix(path, "/assignments") || strings.HasSuffix(path, "/attempts") || strings.HasSuffix(path, "/privileges") || strings.HasSuffix(path, "/results") {
+				params = append(params, map[string]any{"name": "student_account_id", "in": "query", "schema": id()})
+			}
+			if strings.HasSuffix(path, "/results") || path == "/v1/exams/student-results" {
+				params = append(params, map[string]any{"name": "grade", "in": "query", "schema": grade})
+				if path != "/v1/exams/student-results" {
+					for _, key := range []string{"has_appeal", "completed_only"} {
+						params = append(params, map[string]any{"name": key, "in": "query", "schema": boolean()})
+					}
+				}
+			}
+			if strings.HasSuffix(path, "/{session}") {
+				params = append(params, map[string]any{"name": "only_errors", "in": "query", "schema": boolean(), "description": "Filter rows with errors; summary and validation hash remain global. Reads use persisted validation, edits and commit revalidate live references."})
 			}
 			op["parameters"] = params
 		}

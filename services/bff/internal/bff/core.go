@@ -11,7 +11,7 @@ const coreID = `[1-9][0-9]{0,18}`
 var studentCoreRoutes = regexp.MustCompile(`^(GET divisions/` + coreID + `/student-imports(/template|/[a-f0-9]{32})?|POST divisions/` + coreID + `/student-imports(/[a-f0-9]{32}/(review|freeze|cancel|export))?|PUT divisions/` + coreID + `/student-imports/[a-f0-9]{32})$`)
 
 var coreOrgRoutes = regexp.MustCompile(`^(GET (me|organization|organization/users|organization/users/` + coreID + `/memberships|audit|directions|divisions|roles|schools|schools/` + coreID + `|organization/test-settings)|POST (schools|roles|directions|divisions)|PUT (organization|schools/` + coreID + `|roles/` + coreID + `|directions/` + coreID + `|divisions/` + coreID + `|organization/test-settings)|DELETE (roles/` + coreID + `|directions/` + coreID + `|divisions/` + coreID + `))$`)
-var coreDivisionRoutes = regexp.MustCompile(`^(GET (users|students|users/` + coreID + `|groups|groups/` + coreID + `/members|dashboard|reports/(tests|exams|attendance)|attendance-report)|POST (users|groups|groups/` + coreID + `/members)|PUT (users/` + coreID + `(/credentials|/active)?|memberships/` + coreID + `|groups/` + coreID + `)|DELETE (memberships/` + coreID + `|groups/` + coreID + `|groups/` + coreID + `/members/` + coreID + `))$`)
+var coreDivisionRoutes = regexp.MustCompile(`^(GET (exam-participants|users|students|users/` + coreID + `|groups|groups/` + coreID + `/members|dashboard|reports/(tests|exams|attendance)|attendance-report)|POST (users|groups|groups/` + coreID + `/members)|PUT (users/` + coreID + `(/credentials|/active)?|memberships/` + coreID + `|groups/` + coreID + `)|DELETE (memberships/` + coreID + `|groups/` + coreID + `|groups/` + coreID + `/members/` + coreID + `))$`)
 
 // Full administrators can select a membership target within their organization.
 // Core validates that path's division against the live actor organization;
@@ -33,9 +33,9 @@ func coreQuery(method, tail string, q url.Values) bool {
 	allowed := map[string]bool{}
 	if method == "GET" {
 		switch tail {
-		case "users", "students", "groups", "schools", "organization/users":
+		case "exam-participants", "users", "students", "groups", "schools", "organization/users":
 			allowed["limit"], allowed["offset"], allowed["q"] = true, true, true
-			if tail == "users" || tail == "organization/users" {
+			if tail == "exam-participants" || tail == "users" || tail == "organization/users" {
 				allowed["role"] = true
 			}
 			if tail == "users" {
@@ -44,6 +44,9 @@ func coreQuery(method, tail string, q url.Values) bool {
 			if tail == "students" {
 				allowed["unassigned"] = true
 			}
+		}
+		if tail == "exam-participants" {
+			allowed["after_id"] = true
 		}
 		if tail == "audit" {
 			allowed["limit"], allowed["offset"] = true, true

@@ -5321,6 +5321,13 @@
             }
           },
           {
+            "in": "query",
+            "name": "training",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "X-CPM-Request",
             "in": "header",
             "required": true,
@@ -6071,6 +6078,46 @@
             "name": "q",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Current references for visible rows only; batches of at most500 IDs",
+            "in": "query",
+            "name": "include_readiness",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "not_started",
+                "pending_ready",
+                "in_progress",
+                "completed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "attempt_no",
+            "schema": {
+              "enum": [
+                1,
+                2
+              ],
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "student_account_id",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -7104,6 +7151,25 @@
                 "completed"
               ],
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "attempt_no",
+            "schema": {
+              "enum": [
+                1,
+                2
+              ],
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "student_account_id",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -12189,7 +12255,7 @@
     },
     "/bff/exams/{exam}/imports/{kind}/{session}": {
       "get": {
-        "description": "Author-owned bounded preview. Pin expected_revision across pages to prevent mixing concurrent edits. Summary counts cover the whole source; error_report covers only this page. Editable retention 72h, committed recovery 7d; expiry returns 410. Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409.",
+        "description": "Author-owned bounded preview. Pin expected_revision across pages to prevent mixing concurrent edits. Summary counts cover the whole source; error_report covers only this page. Editable retention 72h, committed recovery 7d; expiry returns 410. Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409. Paging reads the persisted validation snapshot; updates and commit revalidate current references.",
         "operationId": "get_v1_exams_exam_imports_kind_session",
         "parameters": [
           {
@@ -12254,6 +12320,14 @@
             "name": "q",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Filter rows with errors; summary and validation hash remain global. Reads use persisted validation, edits and commit revalidate live references.",
+            "in": "query",
+            "name": "only_errors",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -13647,6 +13721,14 @@
           },
           {
             "in": "query",
+            "name": "part_id",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "schema": {
               "maximum": 200,
@@ -14496,6 +14578,14 @@
             "name": "q",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "student_account_id",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -16194,6 +16284,37 @@
             }
           },
           {
+            "in": "query",
+            "name": "student_account_id",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "grade",
+            "schema": {
+              "maximum": 5,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_appeal",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "completed_only",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "X-CPM-Request",
             "in": "header",
             "required": true,
@@ -16865,6 +16986,65 @@
             "name": "part_id",
             "schema": {
               "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "summary",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preview",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "batch_index",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Preview only; no settings are persisted",
+            "in": "query",
+            "name": "batch_size",
+            "schema": {
+              "enum": [
+                10,
+                20,
+                30
+              ],
               "type": "integer"
             }
           },
@@ -61983,6 +62163,7 @@
     },
     "/bff/core/organization/users/{user}/memberships": {
       "get": {
+        "description": "Response data includes account_id, role, is_active, owner_organization_id, can_assign, can_revoke and memberships. The minimal account projection supports single-account membership validation without a complete organization roster. Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409.",
         "parameters": [
           {
             "in": "path",
@@ -61991,6 +62172,69 @@
             "schema": {
               "minimum": 1,
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unassigned",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -62041,8 +62285,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Участия аккаунта только в своей организации: полный администратор",
-        "description": " Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409."
+        "summary": "Участия аккаунта только в своей организации: полный администратор"
       }
     },
     "/bff/core/audit": {
@@ -63494,7 +63737,26 @@
                 "additionalProperties": false,
                 "properties": {
                   "class": {
-                    "type": "integer"
+                    "anyOf": [
+                      {
+                        "maximum": 99,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Student class is optional: omitted/null stores SQL NULL; supplied student values must be 1..99. Legacy staff DTOs retain zero."
+                  },
+                  "division_ids": {
+                    "description": "Optional extra examiner divisions, full organization administrator only. Current division always included. Active same-organization memberships and account are created atomically; existing account distribution uses the membership endpoint.",
+                    "items": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
                   },
                   "full_name": {
                     "type": "string"
@@ -63514,6 +63776,16 @@
                   },
                   "password": {
                     "type": "string"
+                  },
+                  "profile_id": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "role": {
                     "type": "string"
@@ -75505,6 +75777,667 @@
           }
         ]
       }
+    },
+    "/bff/exams/{exam}/overview": {
+      "get": {
+        "description": "Administrator overview using compact SQL counts; no question text or protocols Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409.",
+        "operationId": "get_v1_exams_exam_overview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "X-CPM-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CPM-Context",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "average_grade": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "counts": {
+                          "additionalProperties": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "type": "object"
+                        },
+                        "exam": {
+                          "$ref": "#/components/schemas/Exams_ExamDetail"
+                        }
+                      },
+                      "required": [
+                        "exam",
+                        "counts",
+                        "average_grade"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful operation"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/bff/exams/student-results": {
+      "get": {
+        "description": "Current student's own results across exams in the selected division, filtered before pagination Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409.",
+        "operationId": "get_v1_exams_student_results",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "enum": [
+                "classic",
+                "outside_lms"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction_id",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "enum": [
+                "division",
+                "bank",
+                "organization"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "date_asc",
+                "date_desc",
+                "created_desc",
+                "direction_asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive current selected-division exam date; classic start uses fixed UTC+03, outside uses date. Equal canonical and legacy aliases are accepted; conflicts are 400. Filtering occurs before pagination.",
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive current selected-division exam date; classic start uses fixed UTC+03, outside uses date. Equal canonical and legacy aliases are accepted; conflicts are 400. Filtering occurs before pagination.",
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive current selected-division exam date; classic start uses fixed UTC+03, outside uses date. Equal canonical and legacy aliases are accepted; conflicts are 400. Filtering occurs before pagination.",
+            "in": "query",
+            "name": "from_date",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive current selected-division exam date; classic start uses fixed UTC+03, outside uses date. Equal canonical and legacy aliases are accepted; conflicts are 400. Filtering occurs before pagination.",
+            "in": "query",
+            "name": "to_date",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "grade",
+            "schema": {
+              "maximum": 5,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "X-CPM-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CPM-Context",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "exam": {
+                                "$ref": "#/components/schemas/Exams_ExamSummary"
+                              },
+                              "result": {
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/components/schemas/Exams_Result"
+                                  },
+                                  {
+                                    "$ref": "#/components/schemas/Exams_OutsideResult"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "exam",
+                              "result"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "limit": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "total",
+                        "limit",
+                        "offset"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful operation"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exams_Error"
+                }
+              }
+            },
+            "description": "Rejected request or unavailable dependency"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/bff/core/exam-participants": {
+      "get": {
+        "description": "Active students/examiners of selected division only. Requires exams.view or users.view. limit 1..200, offset 0..100000; role student or examinator; q searches full name/login/account ID. after_id enables keyset export, requires zero offset and omits total to avoid counting each page. IDs are auth account IDs, profile_id is informational. No credentials. Организация и подразделение берутся из BFF session. Изменения требуют Origin http://127.0.0.1:3001; устаревший контекст получает409.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CPM-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "1"
+            }
+          },
+          {
+            "name": "X-CPM-Context",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "account_id": {
+                                "type": "integer"
+                              },
+                              "division_id": {
+                                "type": "integer"
+                              },
+                              "division_name": {
+                                "type": "string"
+                              },
+                              "full_name": {
+                                "type": "string"
+                              },
+                              "login": {
+                                "type": "string"
+                              },
+                              "profile_id": {
+                                "type": "integer"
+                              },
+                              "role": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Included for offset pages; omitted for after_id cursor export."
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "limit",
+                        "offset"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "const": true
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Результат выбранного подразделения; отсутствующее значение null"
+          },
+          "201": {
+            "description": "Создано"
+          },
+          "400": {
+            "description": "Неверные данные"
+          },
+          "401": {
+            "description": "Недействующий токен"
+          },
+          "403": {
+            "description": "Нет права/контекста"
+          },
+          "404": {
+            "description": "Объект вне области доступа или отсутствует"
+          },
+          "409": {
+            "description": "Конфликт или запрет удаления истории"
+          },
+          "503": {
+            "description": "Auth/БД недоступны; доступ закрыт"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Активные ученики и экзаменаторы: exams.view или users.view, с пагинацией"
+      }
     }
   },
   "components": {
@@ -76236,6 +77169,9 @@
           },
           "student": {
             "$ref": "#/components/schemas/Exams_Member"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/Exams_Readiness"
           }
         },
         "required": [
@@ -76749,6 +77685,10 @@
             "type": "string"
           },
           "revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "assigned_students_count": {
             "minimum": 0,
             "type": "integer"
           }
@@ -77306,6 +78246,18 @@
           },
           "training_enabled": {
             "type": "boolean"
+          },
+          "parts_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cards_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "assigned_students_count": {
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
@@ -78398,6 +79350,13 @@
           "revision": {
             "minimum": 0,
             "type": "integer"
+          },
+          "student": {
+            "$ref": "#/components/schemas/Exams_Member"
+          },
+          "student_account_id": {
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [
@@ -78504,6 +79463,9 @@
           "revision": {
             "minimum": 0,
             "type": "integer"
+          },
+          "part_code": {
+            "type": "string"
           }
         },
         "required": [
@@ -79137,6 +80099,17 @@
           },
           "student": {
             "$ref": "#/components/schemas/Exams_Member"
+          },
+          "first_attempt_id": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retake_assignment_id": {
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -79511,6 +80484,16 @@
               "version": {
                 "minimum": 0,
                 "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "exam_date": {
+                "format": "date",
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -79577,6 +80560,37 @@
           },
           "success": {
             "type": "boolean"
+          },
+          "cards_total": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "parts_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cards_pagination": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "offset": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total",
+              "limit",
+              "offset"
+            ],
+            "type": "object"
           }
         },
         "required": [

@@ -270,8 +270,8 @@ func (s *Server) organizationUserMemberships(r *http.Request, a Actor, d int64) 
 		return nil, 0, e
 	}
 	defer tx.Rollback()
-	row, e := one(r.Context(), tx, `SELECT a.id account_id,a.role,o.organization_id owner_organization_id
- FROM auth_users a LEFT JOIN core_user_owners o ON o.user_id=a.id
+	row, e := one(r.Context(), tx, `SELECT a.id account_id,a.role,s.is_active,o.organization_id owner_organization_id
+ FROM auth_users a JOIN auth_account_state s ON s.user_id=a.id LEFT JOIN core_user_owners o ON o.user_id=a.id
  WHERE a.id=? AND (o.organization_id=? OR EXISTS(SELECT 1 FROM auth_organization_access x WHERE x.user_id=a.id AND x.organization_id=?))`, u, a.OrganizationID, a.OrganizationID)
 	if e != nil {
 		return nil, 0, e
@@ -291,7 +291,7 @@ func (s *Server) organizationUserMemberships(r *http.Request, a Actor, d int64) 
 	for _, membership := range memberships {
 		membership["can_revoke"] = canRevoke
 	}
-	return ok(map[string]any{"account_id": u, "owner_organization_id": row["owner_organization_id"],
+	return ok(map[string]any{"account_id": u, "role": row["role"], "is_active": row["is_active"], "owner_organization_id": row["owner_organization_id"],
 		"can_assign": num(row["owner_organization_id"]) == a.OrganizationID && row["role"] != "admin",
 		"can_revoke": canRevoke, "memberships": memberships})
 }

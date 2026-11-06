@@ -18,12 +18,13 @@ const ImportPageLimit = 200
 
 type ImportPage struct {
 	Limit            int
+	OnlyErrors       bool
 	Offset           int
 	ExpectedRevision *int64
 }
 
 func importPage(p Params) (ImportPage, error) {
-	page := ImportPage{Limit: 100}
+	page := ImportPage{Limit: 100, OnlyErrors: p.Query["only_errors"] == "true"}
 	for key, target := range map[string]*int{"limit": &page.Limit, "offset": &page.Offset} {
 		if raw := p.Query[key]; raw != "" {
 			number, err := strconv.Atoi(raw)
@@ -133,6 +134,16 @@ func importPreview(id string, revision int64, state, kind string, e *Exam, a Act
 				out.Summary.Valid++
 			}
 		}
+	}
+	if page.OnlyErrors {
+		filtered := make([]ImportRow, 0)
+		for _, row := range public {
+			if !row.Excluded && len(row.Errors) > 0 {
+				filtered = append(filtered, row)
+			}
+		}
+		public = filtered
+		out.Total = len(public)
 	}
 	if out.Offset > out.Total {
 		out.Offset = out.Total

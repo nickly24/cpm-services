@@ -31,7 +31,8 @@ type SchoolDTO struct {
 	Active    bool   `json:"is_active"`
 }
 type UserDTO struct {
-	ProfileID     *int64 `json:"profile_id,omitempty"`
+	DivisionIDs   []int64 `json:"division_ids,omitempty"`
+	ProfileID     *int64  `json:"profile_id,omitempty"`
 	classSupplied bool
 	Role          string `json:"role"`
 	FullName      string `json:"full_name"`

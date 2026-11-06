@@ -120,7 +120,7 @@ func TestOrganizationMembershipsAreOwnOrgAndReadOnlyForForeignOwner(t *testing.T
 			if out["can_assign"] != tc.assign || out["owner_organization_id"] != tc.owner || len(out["memberships"].([]map[string]any)) != 1 {
 				t.Fatal(out)
 			}
-			if out["can_revoke"] != (tc.role != "admin") || out["memberships"].([]map[string]any)[0]["can_revoke"] != (tc.role != "admin") || len(out) != 5 {
+			if out["can_revoke"] != (tc.role != "admin") || out["memberships"].([]map[string]any)[0]["can_revoke"] != (tc.role != "admin") || len(out) != 7 {
 				t.Fatal("revoke capability or minimal account projection incorrect", out)
 			}
 		})

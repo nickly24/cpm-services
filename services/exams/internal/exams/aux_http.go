@@ -38,7 +38,11 @@ func (s *Server) importMembers(r *http.Request, a Actor, p Params, e *Exam, rows
 			}
 		}
 	}
-	fetch := func(is []int64, ls []string) error {
+	if _, er := d.Fetch(r, a.OrganizationID, []int64{p.DivisionID}, e.DirectionID, nil, nil); er != nil {
+		return nil, er
+	}
+	var fetch func([]int64, []string) error
+	fetch = func(is []int64, ls []string) error {
 		set, er := d.Fetch(r, a.OrganizationID, []int64{p.DivisionID}, e.DirectionID, is, ls)
 		if er == nil {
 			add(set)
@@ -48,24 +52,23 @@ func (s *Server) importMembers(r *http.Request, a Actor, p Params, e *Exam, rows
 		if !ok || api.Status != 404 {
 			return er
 		}
-		for _, id := range is {
-			set, er = d.Fetch(r, a.OrganizationID, []int64{p.DivisionID}, e.DirectionID, []int64{id}, nil)
-			if er == nil {
-				add(set)
-			} else if v, ok := er.(*APIError); !ok || v.Status != 404 {
+		if len(is)+len(ls) <= 1 {
+			return nil
+		}
+		if len(is) > 0 {
+			mid := len(is) / 2
+			if er = fetch(is[:mid], nil); er != nil {
 				return er
 			}
+			return fetch(is[mid:], nil)
 		}
-		for _, login := range ls {
-			set, er = d.Fetch(r, a.OrganizationID, []int64{p.DivisionID}, e.DirectionID, nil, []string{login})
-			if er == nil {
-				add(set)
-			} else if v, ok := er.(*APIError); !ok || v.Status != 404 {
-				return er
-			}
+		mid := len(ls) / 2
+		if er = fetch(nil, ls[:mid]); er != nil {
+			return er
 		}
-		return nil
+		return fetch(nil, ls[mid:])
 	}
+
 	for i := 0; i < len(ids); i += 500 {
 		end := i + 500
 		if end > len(ids) {
@@ -174,7 +177,12 @@ func (s *Server) importRoute(w http.ResponseWriter, r *http.Request) {
 		failure(w, err)
 		return
 	}
-	ex, err := load(r.Context(), s.DB, a.OrganizationID, id, false)
+	var ex *Exam
+	if r.Method == "GET" {
+		ex, err = loadExamMetadata(r.Context(), s.DB, a.OrganizationID, id)
+	} else {
+		ex, err = load(r.Context(), s.DB, a.OrganizationID, id, false)
+	}
 	if err != nil {
 		failure(w, err)
 		return
@@ -274,18 +282,10 @@ func (s *Server) importRoute(w http.ResponseWriter, r *http.Request) {
 			failure(w, &APIError{503, "invalid_preview_storage"})
 			return
 		}
-		if session.State == "editable" {
-			p.Members, err = s.importMembers(r, a, p, ex, rows)
-			if err != nil {
-				failure(w, err)
-				return
-			}
-			rows, err = ValidateImport(ex, a, kind, p, rows)
-			if err != nil {
-				failure(w, err)
-				return
-			}
-		}
+		// Paging reads the persisted validation snapshot. Updates and commit
+		// revalidate against live references; reading page N never changes the
+		// validation hash established by page 1.
+
 		var result any
 		if len(session.Result) > 0 {
 			result, err = decodeStoredValue(session.Result)
@@ -507,7 +507,7 @@ func (s *Server) trainingRoute(w http.ResponseWriter, r *http.Request) {
 		failure(w, err)
 		return
 	}
-	e, err := load(r.Context(), s.DB, a.OrganizationID, id, false)
+	e, err := loadTrainingBank(r.Context(), s.DB, a.OrganizationID, id, p.DivisionID)
 	if err != nil {
 		failure(w, err)
 		return
@@ -564,6 +564,9 @@ func (s *Server) trainingRoute(w http.ResponseWriter, r *http.Request) {
 		if er != nil {
 			failure(w, er)
 			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/training/summary") {
+			p.Query["summary"] = "true"
 		}
 		out, er := TrainingView(e, a, p, progress, settings)
 		if er != nil {

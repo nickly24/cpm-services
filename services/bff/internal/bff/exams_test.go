@@ -64,7 +64,7 @@ func TestExamOpenAPIMatchesPublicBoundary(t *testing.T) {
 			}
 		}
 	}
-	if count != 62 {
+	if count != 64 {
 		t.Fatalf("unexpected public owner operations: %d", count)
 	}
 	refs := regexp.MustCompile(`"\$ref"\s*:\s*"#/components/schemas/([^"]+)"`)

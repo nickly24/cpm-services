@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -234,6 +235,16 @@ func TrainingView(e *Exam, a Actor, p Params, progress map[string]string, settin
 	if settings.BatchSize == 0 {
 		settings = DefaultTrainingSettings()
 	}
+	if raw := p.Query["batch_size"]; raw != "" {
+		if !preview {
+			return nil, Bad("preview_required")
+		}
+		size, err := strconv.Atoi(raw)
+		if err != nil {
+			return nil, Bad("invalid_batch_size")
+		}
+		settings.BatchSize = size
+	}
 	if err := trainingSettingsValid(settings); err != nil {
 		return nil, err
 	}
@@ -243,8 +254,13 @@ func TrainingView(e *Exam, a Actor, p Params, progress map[string]string, settin
 	}
 	all := []TrainingCard{}
 	selected := []TrainingCard{}
+	questionsByPart := map[int64][]Question{}
+	for _, q := range e.Questions {
+		questionsByPart[q.PartID] = append(questionsByPart[q.PartID], q)
+	}
+	cardsByPart := map[int64][]TrainingCard{}
 	for _, part := range e.Parts {
-		for _, q := range e.Questions {
+		for _, q := range questionsByPart[part.ID] {
 			if q.PartID != part.ID || strings.TrimSpace(q.Text) == "" || strings.TrimSpace(q.Answer) == "" {
 				continue
 			}
@@ -260,6 +276,7 @@ func TrainingView(e *Exam, a Actor, p Params, progress map[string]string, settin
 			}
 			card := TrainingCard{ref, q.ID, e.ID, q.PartID, part.Code, q.Text, q.Answer, fp, status}
 			all = append(all, card)
+			cardsByPart[part.ID] = append(cardsByPart[part.ID], card)
 			if p.PartID == 0 || q.PartID == p.PartID {
 				selected = append(selected, card)
 			}
@@ -287,19 +304,40 @@ func TrainingView(e *Exam, a Actor, p Params, progress map[string]string, settin
 	}
 	partNodes := []any{}
 	for _, part := range e.Parts {
-		partCards := []TrainingCard{}
-		for _, card := range all {
-			if card.PartID == part.ID {
-				partCards = append(partCards, card)
-			}
-		}
+		partCards := cardsByPart[part.ID]
 		partNodes = append(partNodes, map[string]any{"part_id": part.ID, "part_code": part.Code, "ref_id": fmt.Sprintf("%d:%d", e.ID, part.ID), "stats": trainingStats(partCards)})
 	}
 	ref := fmt.Sprint(e.ID)
 	if p.PartID != 0 {
 		ref += fmt.Sprintf(":%d", p.PartID)
 	}
-	return map[string]any{"success": true, "account_id": a.AccountID, "organization_id": e.OrganizationID, "division_id": p.DivisionID, "section_kind": "exam", "section_ref_id": ref, "exam": map[string]any{"id": e.ID, "exam_type": e.Kind, "direction_id": e.DirectionID, "training_enabled": d.TrainingEnabled, "start_at": d.Config.StartAt, "end_at": d.Config.EndAt, "version": e.Revision}, "parts": partNodes, "part_id": p.PartID, "cards": selected, "stats": trainingStats(selected), "exam_stats": trainingStats(all), "batches": batches, "settings": settings, "preview": preview}, nil
+	selectedStats := trainingStats(selected)
+	cardsTotal := len(selected)
+	if raw := p.Query["batch_index"]; raw != "" {
+		index, err := strconv.Atoi(raw)
+		if err != nil || index < 0 {
+			return nil, Bad("invalid_batch_index")
+		}
+		if index >= len(batches) {
+			selected = []TrainingCard{}
+		} else {
+			start := index * settings.BatchSize
+			selected = selected[start:min(start+settings.BatchSize, len(selected))]
+		}
+	}
+	pagination := map[string]int{"total": cardsTotal, "limit": cardsTotal, "offset": 0}
+	if p.Query["batch_index"] == "" && (p.Query["limit"] != "" || p.Query["offset"] != "") {
+		start, end, limit, err := pageWindow(cardsTotal, p)
+		if err != nil {
+			return nil, err
+		}
+		selected = selected[start:end]
+		pagination = map[string]int{"total": cardsTotal, "limit": limit, "offset": start}
+	}
+	if p.Query["summary"] == "true" {
+		selected = []TrainingCard{}
+	}
+	return map[string]any{"success": true, "account_id": a.AccountID, "organization_id": e.OrganizationID, "division_id": p.DivisionID, "section_kind": "exam", "section_ref_id": ref, "exam": map[string]any{"id": e.ID, "name": e.Name, "exam_date": examDateValue(e, p.DivisionID), "exam_type": e.Kind, "direction_id": e.DirectionID, "training_enabled": d.TrainingEnabled, "start_at": d.Config.StartAt, "end_at": d.Config.EndAt, "version": e.Revision}, "parts": partNodes, "part_id": p.PartID, "cards": selected, "cards_total": cardsTotal, "cards_pagination": pagination, "parts_count": len(e.Parts), "stats": selectedStats, "exam_stats": trainingStats(all), "batches": batches, "settings": settings, "preview": preview}, nil
 }
 
 // ResolveTrainingCard validates the live card and optionally its optimistic

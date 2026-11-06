@@ -3,6 +3,7 @@ package core
 import (
 	"database/sql"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -103,7 +104,34 @@ func (s *Server) userGet(r *http.Request, a Actor, d int64) (any, int, error) {
 	}
 	return ok(row)
 }
+
+// Examiner creation always includes the current cabinet, so recovery can find the
+// account there. Extra memberships are created in the same transaction.
+func creationDivisions(a Actor, d int64, in UserDTO) ([]int64, error) {
+	if len(in.DivisionIDs) > 100 {
+		return nil, bad("invalid_divisions")
+	}
+	if len(in.DivisionIDs) > 0 && (in.Role != "examinator" || !a.OrganizationAdmin) {
+		return nil, denied
+	}
+	seen := map[int64]bool{d: true}
+	for _, id := range in.DivisionIDs {
+		if id < 1 {
+			return nil, bad("invalid_divisions")
+		}
+		seen[id] = true
+	}
+	result := make([]int64, 0, len(seen))
+	for id := range seen {
+		result = append(result, id)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	return result, nil
+}
 func (s *Server) validUser(r *http.Request, db DBTX, a Actor, d int64, in UserDTO) error {
+	if _, err := creationDivisions(a, d, in); err != nil {
+		return err
+	}
 	if in.Role == "admin" || profileTables[in.Role] == "" {
 		return bad("invalid_role")
 	}
@@ -172,6 +200,19 @@ func (s *Server) validUser(r *http.Request, db DBTX, a Actor, d int64, in UserDT
 	return nil
 }
 func (s *Server) insertUser(r *http.Request, tx *sql.Tx, a Actor, d int64, in UserDTO, hash string) (int64, error) {
+	// Import callers also use insertUser: the extra targets must be locked and
+	// checked here, not only in the interactive creation handler.
+	if len(in.DivisionIDs) > 0 {
+		targets, err := creationDivisions(a, d, in)
+		if err != nil {
+			return 0, err
+		}
+		for _, target := range targets {
+			if err = lockDivision(r.Context(), tx, a, target); err != nil {
+				return 0, err
+			}
+		}
+	}
 	if e := s.validUser(r, tx, a, d, in); e != nil {
 		return 0, e
 	}
@@ -239,6 +280,21 @@ func (s *Server) insertUser(r *http.Request, tx *sql.Tx, a Actor, d int64, in Us
 			return 0, e
 		}
 	}
+	divisions, e := creationDivisions(a, d, in)
+	if e != nil {
+		return 0, e
+	}
+	for _, target := range divisions {
+		if target == d {
+			continue
+		}
+		if _, e = tx.ExecContext(r.Context(), "INSERT INTO auth_division_access(user_id,organization_id,division_id) VALUES(?,?,?)", u, a.OrganizationID, target); e != nil {
+			return 0, e
+		}
+		if e = audit(r.Context(), tx, a, &target, "membership.grant", u); e != nil {
+			return 0, e
+		}
+	}
 	if in.Role == "proctor" && in.GroupID != nil {
 		if _, e = tx.ExecContext(r.Context(), "INSERT INTO core_proctor_groups VALUES(?,?,?)", u, d, *in.GroupID); e != nil {
 			return 0, e
@@ -268,8 +324,10 @@ func (s *Server) userCreate(r *http.Request, a Actor, d int64) (any, int, error)
 	}
 	var uid int64
 	e = s.transact(r.Context(), func(tx *sql.Tx) error {
-		if e := lockDivision(r.Context(), tx, a, d); e != nil {
-			return e
+		if len(in.DivisionIDs) == 0 {
+			if err := lockDivision(r.Context(), tx, a, d); err != nil {
+				return err
+			}
 		}
 		var err error
 		uid, err = s.insertUser(r, tx, a, d, in, hash)

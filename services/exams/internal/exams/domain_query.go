@@ -14,7 +14,7 @@ func Query(e *Exam, a Actor, op string, p Params) (any, error) {
 	bankOnly := false
 	d, err := e.Division(p.DivisionID)
 	if err != nil {
-		if admin && (e.InBank || a.OrganizationAdmin) && oneOf(op, "detail", "parts", "questions") {
+		if admin && (e.InBank || a.OrganizationAdmin) && oneOf(op, "detail", "overview", "parts", "questions") {
 			d = &Division{ID: p.DivisionID}
 			bankOnly = true
 		} else {
@@ -32,6 +32,9 @@ func Query(e *Exam, a Actor, op string, p Params) (any, error) {
 	}
 	if a.Role == "student" && !oneOf(op, "detail", "results", "result", "protocol", "attempt") {
 		return nil, Denied
+	}
+	if out, handled, err := pagedQuery(e, d, a, op, p); handled {
+		return out, err
 	}
 	switch op {
 	case "detail":
@@ -64,63 +67,7 @@ func Query(e *Exam, a Actor, op string, p Params) (any, error) {
 		return result, nil
 	case "config":
 		return map[string]any{"config": d.Config, "max_score": maxScore(e.Parts), "local_validation": configurationErrors(e, d, 0)}, nil
-	case "parts":
-		items := []any{}
-		for _, part := range e.Parts {
-			size := 0
-			for _, q := range e.Questions {
-				if q.PartID == part.ID {
-					size++
-				}
-			}
-			items = append(items, map[string]any{"id": part.ID, "code": part.Code, "weight": part.Weight, "quota": part.Quota, "revision": part.Revision, "bank_size": size})
-		}
-		return page(items, p)
-	case "questions":
-		items := []any{}
-		filter := p.PartID
-		if p.Query["part_id"] != "" {
-			id, err := strconv.ParseInt(p.Query["part_id"], 10, 64)
-			if err != nil || id < 1 {
-				return nil, Bad("invalid_part_id")
-			}
-			filter = id
-		}
-		questions := append([]Question(nil), e.Questions...)
-		sort.SliceStable(questions, func(i, j int) bool { return partIndex(e, questions[i].PartID) < partIndex(e, questions[j].PartID) })
-		for _, q := range questions {
-			if filter == 0 || q.PartID == filter {
-				items = append(items, q)
-			}
-		}
-		return page(items, p)
-	case "commissions":
-		items := []any{}
-		for _, c := range d.Commissions {
-			items = append(items, c)
-		}
-		return page(items, p)
-	case "assignments":
-		items := []any{}
-		for _, as := range d.Assignments {
-			if !admin && !examiner(a, as.Members) {
-				continue
-			}
-			items = append(items, assignmentDTO(d, &as))
-		}
-		return page(items, p)
-	case "privileges":
-		items := []any{}
-		ids := []int64{}
-		for id := range d.Privileges {
-			ids = append(ids, id)
-		}
-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-		for _, id := range ids {
-			v := d.Privileges[id]
-			items = append(items, map[string]any{"student_account_id": id, "replacement_limit": v.Limit, "revision": v.Revision})
-		}
-		return page(items, p)
+
 	case "readiness":
 		var as *Assignment
 		if p.AssignmentID != 0 {
@@ -149,65 +96,7 @@ func Query(e *Exam, a Actor, op string, p Params) (any, error) {
 			return resultDTO(e, d, at, a), nil
 		}
 		return attemptDTO(e, d, at, a, p), nil
-	case "attempts":
-		items := []any{}
-		for i := range d.Attempts {
-			at := &d.Attempts[i]
-			if !canReadAttempt(at, a, admin) || p.StudentID > 0 && at.Student.AccountID != p.StudentID || p.Query["status"] != "" && at.Status != p.Query["status"] {
-				continue
-			}
-			row := attemptDTO(e, d, at, a, p)
-			delete(row, "current_question")
-			items = append(items, row)
-		}
-		return page(items, p)
-	case "results":
-		items := []any{}
-		dateFilter, err := ParseExamDateFilter(p.Query)
-		if err != nil {
-			return nil, err
-		}
-		if !dateFilter.Match(e, p.DivisionID) {
-			return page(items, p)
-		}
-		if e.Kind == "outside_lms" {
-			for _, r := range d.Outside {
-				if a.Role == "student" && r.Student.AccountID != actorID(a) || p.StudentID > 0 && r.Student.AccountID != p.StudentID {
-					continue
-				}
-				items = append(items, outsideDTO(e, d, r, a))
-			}
-		} else {
-			ids := map[int64]bool{}
-			for _, as := range d.Assignments {
-				if a.Role == "student" && as.Student.AccountID != actorID(a) || !admin && a.Role == "examinator" && !examiner(a, as.Members) || p.StudentID > 0 && as.Student.AccountID != p.StudentID {
-					continue
-				}
-				ids[as.Student.AccountID] = true
-			}
-			ordered := []int64{}
-			for id := range ids {
-				ordered = append(ordered, id)
-			}
-			sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
-			for _, id := range ordered {
-				at := effectiveAttempt(d, id)
-				if at == nil {
-					if admin {
-						as := firstAssignment(d, id)
-						if as != nil {
-							items = append(items, map[string]any{"student": as.Student, "result": nil, "status": "not_completed", "exam_date": examDateValue(e, d.ID)})
-						}
-					}
-					continue
-				}
-				if !canReadAttempt(at, a, admin) {
-					continue
-				}
-				items = append(items, resultDTO(e, d, at, a))
-			}
-		}
-		return page(items, p)
+
 	case "result":
 		student := p.StudentID
 		if a.Role == "student" {
@@ -387,8 +276,12 @@ func page(items []any, p Params) (any, error) {
 	q := strings.ToLower(strings.TrimSpace(p.Query["q"]))
 	filtered := []any{}
 	for _, item := range items {
+		if q == "" {
+			filtered = append(filtered, item)
+			continue
+		}
 		raw, _ := json.Marshal(item)
-		if q == "" || strings.Contains(strings.ToLower(string(raw)), q) {
+		if strings.Contains(strings.ToLower(string(raw)), q) {
 			filtered = append(filtered, item)
 		}
 	}

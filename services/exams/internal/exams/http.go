@@ -61,6 +61,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /v1/exams/training/catalog", s.trainingCatalog)
 	m.HandleFunc("GET /v1/exams/{exam}/training/summary", s.trainingRoute)
 	m.HandleFunc("GET /v1/exams", s.catalog)
+	m.HandleFunc("GET /v1/exams/student-results", s.studentResults)
+	m.HandleFunc("GET /v1/exams/{exam}/overview", s.overview)
 	m.HandleFunc("POST /v1/exams", s.newExam)
 	m.HandleFunc("GET /internal/exams/rating-snapshot", s.snapshot)
 	m.HandleFunc("GET /v1/exams/{exam}/imports/{kind}/template", s.importTemplateRoute)
@@ -136,7 +138,7 @@ func params(r *http.Request, a Actor) (Params, error) {
 		if len(values) != 1 {
 			return p, Bad("duplicate_query_parameter")
 		}
-		if !oneOf(key, "limit", "offset", "q", "type", "direction_id", "scope", "sort", "expected_revision", "part_id", "assignment_id", "student_account_id", "status", "through_sequence_no", "through_round_no", "preview", "date_from", "date_to", "from_date", "to_date", "as_of") {
+		if !oneOf(key, "limit", "offset", "q", "type", "direction_id", "scope", "sort", "expected_revision", "part_id", "assignment_id", "student_account_id", "status", "through_sequence_no", "through_round_no", "preview", "date_from", "date_to", "from_date", "to_date", "as_of", "include_readiness", "attempt_no", "grade", "has_appeal", "completed_only", "summary", "batch_index", "only_errors", "training", "batch_size") {
 			return p, Bad("unknown_query_parameter")
 		}
 		p.Query[key] = values[0]
@@ -337,6 +339,28 @@ func (s *Server) operation(w http.ResponseWriter, r *http.Request, op string) {
 		p.Members = scopeMembers(members, p.DivisionID)
 	}
 	if !mut {
+		if op == "assignments" && p.Query["include_readiness"] == "true" {
+			if d := e.Divisions[p.DivisionID]; d != nil {
+				rows := filteredAssignments(d, a, p)
+				start, end, _, er := pageWindow(len(rows), p)
+				if er != nil {
+					failure(w, er)
+					return
+				}
+				ids := []int64{}
+				for _, as := range rows[start:end] {
+					ids = append(ids, as.Student.AccountID)
+					for _, m := range as.Members {
+						ids = append(ids, m.AccountID)
+					}
+				}
+				p.Members, er = s.readMembers(r, a, p, e.DirectionID, ids)
+				if er != nil {
+					failure(w, er)
+					return
+				}
+			}
+		}
 		if op == "delete-preview" {
 			if !a.Can(false) {
 				failure(w, Denied)
@@ -375,7 +399,9 @@ func (s *Server) operation(w http.ResponseWriter, r *http.Request, op string) {
 		if op == "metadata" || op == "bank" || op == "direction" || op == "connect" || op == "disconnect" || op == "copy" || op == "delete" {
 			return s.catalogMutation(r, tx, locked, a, p, op, raw)
 		}
-		data, er := Command(locked, a, op, p, raw)
+		// This aggregate is transaction-local. An error rolls back SQL and discards it;
+		// public Command retains its defensive copy for in-memory callers.
+		data, er := command(locked, a, op, p, raw)
 		if er != nil {
 			return nil, er
 		}
@@ -667,13 +693,22 @@ func (s *Server) catalog(w http.ResponseWriter, r *http.Request) {
 		failure(w, Bad("invalid_pagination"))
 		return
 	}
-	es, err := listExams(r.Context(), s.DB, a.OrganizationID)
+	records, err := listCatalog(r.Context(), s.DB, a, p)
 	if err != nil {
 		failure(w, err)
 		return
 	}
 	filtered := []*Exam{}
-	for _, e := range es {
+	metadata := map[int64]catalogRecord{}
+	for _, record := range records {
+		e := record.Exam
+		metadata[e.ID] = record
+		if p.Query["training"] == "true" {
+			d := e.Divisions[p.DivisionID]
+			if e.Kind != "classic" || d == nil || !d.TrainingEnabled || record.Questions == 0 {
+				continue
+			}
+		}
 		if scope(e, a, p, false, false) != nil {
 			continue
 		}
@@ -681,9 +716,6 @@ func (s *Server) catalog(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if p.Query["scope"] == "division" && e.Divisions[p.DivisionID] == nil {
-			continue
-		}
-		if q := p.Query["q"]; q != "" && !strings.Contains(strings.ToLower(e.Name), strings.ToLower(q)) {
 			continue
 		}
 		if direction := p.Query["direction_id"]; direction != "" && direction != strconv.FormatInt(e.DirectionID, 10) {
@@ -695,25 +727,14 @@ func (s *Server) catalog(w http.ResponseWriter, r *http.Request) {
 		if !dateFilter.Match(e, p.DivisionID) {
 			continue
 		}
-		if a.Role == "examinator" {
-			found := false
-			if d := e.Divisions[p.DivisionID]; d != nil {
-				for _, as := range d.Assignments {
-					for _, m := range as.Members {
-						if m.AccountID == a.AccountID {
-							found = true
-						}
-					}
-				}
-			}
-			if !found {
-				continue
-			}
+		if a.Role == "examinator" && record.Assigned == 0 {
+			continue
 		}
+
 		filtered = append(filtered, e)
 	}
 	directionNames := map[int64]string{}
-	if p.Query["sort"] == "direction_asc" && len(filtered) > 0 {
+	if (p.Query["sort"] == "direction_asc" || strings.TrimSpace(p.Query["q"]) != "") && len(filtered) > 0 {
 		provider, ok := s.Deps.(interface {
 			Fetch(*http.Request, int64, []int64, int64, []int64, []string) (ReferenceSet, error)
 		})
@@ -734,6 +755,15 @@ func (s *Server) catalog(w http.ResponseWriter, r *http.Request) {
 			directionNames[direction.ID] = direction.Name
 		}
 	}
+	if strings.TrimSpace(p.Query["q"]) != "" {
+		matched := filtered[:0]
+		for _, e := range filtered {
+			if queryMatches(p, e.Name, directionNames[e.DirectionID]) {
+				matched = append(matched, e)
+			}
+		}
+		filtered = matched
+	}
 	sort.Slice(filtered, func(i, j int) bool {
 		a, b := filtered[i], filtered[j]
 		switch p.Query["sort"] {
@@ -748,9 +778,20 @@ func (s *Server) catalog(w http.ResponseWriter, r *http.Request) {
 			return ExamCatalogDateLess(a, b, p.DivisionID, p.Query["sort"] == "date_asc")
 		}
 	})
-	items := make([]any, 0, len(filtered))
-	for _, e := range filtered {
+	total := len(filtered)
+	if offset > total {
+		offset = total
+	}
+	end := min(offset+limit, total)
+	items := make([]any, 0, end-offset)
+	for _, e := range filtered[offset:end] {
 		row := summary(e, p.DivisionID)
+		meta := metadata[e.ID]
+		row["parts_count"] = meta.Parts
+		row["cards_count"] = meta.Questions
+		if a.Role == "examinator" {
+			row["assigned_students_count"] = meta.Assigned
+		}
 		if !a.Can(false) {
 			for _, field := range []string{"connected_division_ids", "owner_division_id", "origin_exam_id", "in_bank"} {
 				delete(row, field)
@@ -758,15 +799,7 @@ func (s *Server) catalog(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, row)
 	}
-	total := len(items)
-	if offset > total {
-		offset = total
-	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
-	respond(w, 200, map[string]any{"items": items[offset:end], "total": total, "limit": limit, "offset": offset})
+	respond(w, 200, map[string]any{"items": items, "total": total, "limit": limit, "offset": offset})
 }
 func catalogDirectionLess(a, b *Exam, names map[int64]string) bool {
 	name := func(e *Exam) string {
